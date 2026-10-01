@@ -6,10 +6,11 @@ Cheap multi-robot autonomous fleets for disaster recovery (also military surveil
 
 - `thesis_outline.tex` — working LaTeX outline (starting draft)
 - `papers_research_questions.md` — research questions and evaluation metrics for the three-paper spine
+- `papers/paper1-phone-as-brain/` — Paper 1 draft: introduction and problem formulation (phone-as-brain feasibility)
 
 ## Three-paper spine
 
-1. Phone-as-brain feasibility (single rover)
+1. [Phone-as-brain feasibility](papers/paper1-phone-as-brain/) (single rover) — introduction and problem formulation in draft
 2. Multi-phone collaborative SLAM / shared maps
 3. One-human multi-fleet collaboration dashboard
 
