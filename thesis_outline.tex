@@ -1,0 +1,102 @@
+% Starting draft for editing - not a final thesis document.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{hyperref}
+\usepackage[numbers]{natbib}
+
+\onehalfspacing
+\title{Cheap Multi-Robot Autonomous Fleets for Disaster Recovery:\\
+Phone-as-Brain Rovers with Depth Sensing, Obstacle Avoidance, and Fleet Command Interfaces}
+\author{Yojan Gautam}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This thesis investigates low-cost multi-robot autonomous fleets for disaster recovery and related high-stakes settings such as military surveillance and fire and rescue.
+Each rover treats a consumer mobile phone as the primary sensor, brain, and compute node: an operator downloads an app and mounts the phone on a simple chassis, rather than provisioned industrial compute.
+The work covers depth sensing and local obstacle avoidance on the vehicle, multi-robot coordination primitives, and a human command interface spanning HUD, VR, and AR styles so one operator can supervise a fleet.
+The author has implemented the autonomy stack and human interface from the ground up; a rolling chassis with depth sensing and obstacle avoidance is currently in progress.
+The goal is a practical, affordable path from phone-mounted robots to one-to-many fleet supervision in environments where existing platforms are too expensive, brittle, or operationally heavy.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Motivation}
+\label{sec:motivation}
+Disaster response environments are cluttered, time-critical, and often unsafe for continuous human presence, yet most capable robots remain expensive, logistics-heavy, or tightly coupled to specialized compute.
+This section argues why conventional platforms underperform for rapid, large-scale recovery and surveillance, and introduces the phone-as-brain insight: a commodity smartphone already packs cameras, IMU, networking, and enough compute to host navigation and sensing software when mounted on a cheap chassis.
+It also frames secondary applications in military surveillance and fire and rescue, where the same cost and deployability constraints apply.
+Closing paragraphs state the research question around the minimum per-robot autonomy needed for one human to supervise many vehicles.
+
+\section{Related Work}
+\label{sec:related}
+This section situates the thesis among local motion planners, autonomy taxonomies for fleets, and immersive command interfaces.
+It reviews Dynamic Window Approach (DWA) and related local planners for differential-drive obstacle avoidance~\citep{fox1997dwa}, surveys fleet autonomy levels from waypoint following to coordinated multi-robot behavior~\citep{parker1998alliance,dias2006market}, and summarizes AR and VR command-center designs for multi-robot supervision~\citep{chen2018survey,milgram1994continuum}.
+Gaps highlighted include cost barriers, phone-centric compute stacks, and end-to-end systems that jointly treat onboard avoidance and human fleet interfaces.
+
+\section{Platform}
+\label{sec:platform}
+The platform chapter describes the physical and software stack that makes a phone-mounted rover practical.
+It covers the rolling chassis, mounting of the phone as the main sensor and compute node, the downloadable app that turns the handset into the vehicle brain, and depth sensing used for near-field geometry.
+Implementation status is stated clearly: autonomy and interface software built ground-up by the author, with a rolling chassis, depth sensor, and obstacle avoidance currently progressing toward a repeatable demo.
+
+\section{Autonomy}
+\label{sec:autonomy}
+Autonomy spans local obstacle avoidance through multi-robot coordination.
+At the vehicle level, the section details depth-based obstacle representation, differential-drive kinematics, and DWA-style local planning that replans every cycle so sequential obstacles update the trajectory without a single precomputed arc~\citep{fox1997dwa}.
+At the fleet level, it describes how increased onboard autonomy shifts the human from continuous teleoperation toward exception handling, including shared goals, conflict avoidance, and coordination messages between robots.
+Open work (integration with waypoint navigation, multi-obstacle replanning) is documented as part of the experimental roadmap.
+
+\section{Human Interface}
+\label{sec:hmi}
+The human interface chapter presents HUD, VR, and AR command-center options for controlling a fleet from one operator seat.
+It explains attention-needed indicators, map-centric views of each rover's pose and state, and design tradeoffs among lightweight HUD overlays, immersive VR maps, and AR situating of fleet status in the operator's workspace.
+The narrative ties interface design to autonomy level: richer onboard avoidance should reduce continuous control load and increase the practical fleet size one person can supervise.
+
+\section{Evaluation Across Scenarios}
+\label{sec:evaluation}
+Evaluation plans cover single-robot obstacle courses, sequential multi-obstacle navigation, and multi-robot scenarios relevant to disaster recovery, fire and rescue, and surveillance-style coverage.
+Candidate metrics include waypoint success, clearance, interventions per robot, operator response time, task completion, and subjective workload as fleet size and autonomy level vary.
+This section also outlines expected failure modes (depth noise, actuation calibration limits, interface attention bottlenecks) and what would constitute a convincing demo versus a controlled study.
+
+\bibliographystyle{plainnat}
+\begin{thebibliography}{99}
+
+\bibitem[Fox et~al.(1997)]{fox1997dwa}
+D.~Fox, W.~Burgard, and S.~Thrun.
+\newblock The dynamic window approach to collision avoidance.
+\newblock {\em IEEE Robotics \& Automation Magazine}, 4(1):23--33, 1997.
+
+\bibitem[Parker(1998)]{parker1998alliance}
+L.~E. Parker.
+\newblock Alliance: An architecture for fault tolerant multirobot cooperation.
+\newblock {\em IEEE Transactions on Robotics and Automation}, 14(2):220--240, 1998.
+
+\bibitem[Dias et~al.(2006)]{dias2006market}
+M.~B. Dias, R.~Zlot, N.~Kalra, and A.~Stentz.
+\newblock Market-based multirobot coordination: A survey and analysis.
+\newblock {\em Proceedings of the IEEE}, 94(7):1257--1270, 2006.
+
+\bibitem[Chen et~al.(2018)]{chen2018survey}
+J.~Y.~C. Chen and others.
+\newblock Human--robot interaction in multi-robot systems: Survey placeholder for AR/VR command interfaces.
+\newblock {\em TBD venue}, 2018.
+
+\bibitem[Milgram and Kishino(1994)]{milgram1994continuum}
+P.~Milgram and F.~Kishino.
+\newblock A taxonomy of mixed reality visual displays.
+\newblock {\em IEICE Transactions on Information and Systems}, E77-D(12):1321--1329, 1994.
+
+\bibitem[Placeholder(YYYY)]{fleet-autonomy-placeholder}
+A.~Author and B.~Author.
+\newblock Fleet autonomy levels and one-to-many supervision (placeholder).
+\newblock {\em Venue TBD}, YYYY.
+
+\end{thebibliography}
+
+\end{document}
