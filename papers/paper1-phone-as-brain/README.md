@@ -13,8 +13,17 @@ Both files are standalone LaTeX articles. The preamble matches `thesis_outline.t
 
 ```bash
 pdflatex introduction.tex
+pdflatex introduction.tex
+pdflatex problem_formulation.tex
 pdflatex problem_formulation.tex
 ```
+
+Compiled exports (two `pdflatex` passes so citations resolve):
+
+- [introduction.pdf](introduction.pdf)
+- [problem_formulation.pdf](problem_formulation.pdf)
+
+The thesis outline export is [thesis_outline.pdf](../../thesis_outline.pdf) at the repository root. Build junk (`*.aux`, `*.log`, and the rest) stays ignored; these PDFs are tracked.
 
 Metrics match `papers_research_questions.md`: loop rate and latency, waypoint success, obstacle clearance, interventions and e-stops, power and thermal limits, and cost and setup time against a dedicated-compute baseline.
 

@@ -1,3 +1,4 @@
+# LaTeX build artifacts
 *.aux
 *.log
 *.out
@@ -5,3 +6,11 @@
 *.synctex.gz
 *.fls
 *.fdb_latexmk
+*.bbl
+*.blg
+
+# Ignore incidental PDFs. The lines below keep the committed draft exports.
+*.pdf
+!thesis_outline.pdf
+!papers/paper1-phone-as-brain/introduction.pdf
+!papers/paper1-phone-as-brain/problem_formulation.pdf
