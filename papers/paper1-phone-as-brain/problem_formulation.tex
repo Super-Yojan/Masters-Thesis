@@ -1,0 +1,121 @@
+% Paper 1 draft — problem formulation only. Standalone; preamble matches thesis_outline.tex.
+% Status: first draft. Kinematic and DWA derivations belong in a later methods section.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage[numbers]{natbib}
+
+\onehalfspacing
+\title{Phone-as-Brain Feasibility for a Cheap Differential-Drive Rover\\
+\large Problem Formulation (draft)}
+\author{Yojan Gautam}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Draft problem statement for the phone-as-brain study: one differential-drive rover, phone-only sensing and control, waypoint navigation under real-time, power, and thermal limits.
+\end{abstract}
+
+\section{Problem Formulation}
+\label{sec:problem}
+
+\subsection{System}
+\label{sec:system}
+
+The plant is a differential-drive chassis with two driven wheels and a passive support.
+Track width and wheel radius are fixed for a chassis and identified before trials.
+A consumer phone is mounted rigidly on the chassis and is the only computer on the vehicle.
+
+The onboard loop sees the handset's cameras, its IMU, and a depth estimate produced on the phone, from a dedicated depth camera, stereo, or a monocular model in the application.
+The phone publishes wheel-velocity setpoints, or a body twist that the motor firmware converts.
+A logger may record data and may name the next waypoint.
+The avoidance loop stays on the phone.
+
+Pose in the local frame is \(q = (x, y, \theta)\), the wheel command is \((v_L, v_R)\), and the equivalent body velocity is \((v, \omega)\).
+Cycle \(k\) observes a depth image or cloud \(D_k\) and an IMU sample \(u_k\).
+
+\subsection{Task}
+\label{sec:task}
+
+The task is waypoint navigation in cluttered indoor and outdoor environments.
+An operator, or a trivial global layer, supplies a short sequence of waypoints in a local frame the phone can track for one run.
+The rover starts from a known or locally estimated pose and should reach the waypoints in order while keeping a clearance margin from obstacles.
+
+Primary obstacles are static: walls, furniture, rubble analogues, cones, and similar structure in the depth image.
+Dynamic obstacles are an optional stress case and stay outside the minimum success criterion until the static case is measured.
+The avoidance map is local, an occupancy or cost patch refreshed as the phone moves.
+The global plan is the waypoint list.
+A persistent map of the site belongs to the collaborative-mapping paper.
+
+\subsection{Sensing and control loop}
+\label{sec:loop}
+
+Each cycle reads the latest depth and IMU data, updates the local obstacle representation, evaluates a dynamic-window-class policy over wheel velocities the chassis can execute~\citep{fox1997dwa}, and emits a command.
+At the speeds used for indoor travel and slow outdoor travel, the distance covered during one delayed cycle should stay inside the clearance margin, so braking and turning still happen before contact.
+
+Let \(\Delta t\) be the control period, \(\tau\) the latency from a depth observation to the command that uses it, \(v\) the speed under test, and \(d_{\min}\) the clearance margin.
+The working check used to interpret measured rates is
+\begin{equation}
+\label{eq:loop-margin}
+v \, (\Delta t + \tau) < d_{\min},
+\end{equation}
+with slack for depth noise, actuation lag, and an obstacle that closes the gap during the same delay.
+Numerical rate and latency targets are reported outcomes, since they depend on the phone, the depth pipeline, and the planner.
+Power and temperature belong with them: a loop that holds its rate on the bench and then slows under thermal throttling or battery sag fails a run of deployment length.
+
+\subsection{Decision problem}
+\label{sec:decision}
+
+Fix the chassis, the phone model, and the mount.
+Let \(s\) be the on-phone software stack (sensing pipeline, local map, and scheduling) and let \(\pi\) be the control policy: a dynamic-window-class planner and its weights, reading the local map, the pose estimate, and the current waypoint.
+
+Over episodes \(\mathcal{E}\) with waypoints and clutter, choose \(s\) and \(\pi\) to maximize the fraction of episodes that reach their waypoints without a collision, subject to the phone's compute, thermal, and power limits:
+\begin{equation}
+\label{eq:objective}
+\max_{s,\pi}
+\quad
+J(s, \pi)
+=
+\frac{1}{|\mathcal{E}|}
+\sum_{e \in \mathcal{E}}
+\mathbf{1}\{e \text{ succeeds under } (s, \pi)\}.
+\end{equation}
+The constraints are:
+\begin{enumerate}
+\item onboard compute is the phone alone;
+\item sensors are the phone and the depth source it produces;
+\item the loop holds a real-time period \(\Delta t\) and a bounded latency \(\tau\) for the whole episode, including under that episode's thermal and power load, in the sense of~\eqref{eq:loop-margin};
+\item commands lie in the differential-drive velocity set the wheels can execute;
+\item motion keeps clearance \(d_{\min}\) from occupied space, and collisions, interventions, and emergency stops are counted when clearance is lost or an operator stops the robot.
+\end{enumerate}
+
+``Well enough'' means \(J\) read with the measurements fixed for this paper: loop rate and end-to-end latency, waypoint success, obstacle clearance and collisions, interventions and emergency stops per run, power draw and thermal throttling, and cost and setup time against a dedicated-compute baseline on the same class of chassis.
+
+\subsection{Scope}
+\label{sec:scope}
+
+The study is one robot.
+Multi-robot SLAM, map fusion, bandwidth, and lost-robot or dropout behavior are out of scope, as are HUD, VR, and AR fleet interfaces and any claim about how many robots one operator can supervise.
+Those are the next two papers, and they reuse this chassis and application once single-robot feasibility is in hand.
+
+Localization may be local over a single run, good enough to order the waypoints and to place obstacles in the control frame.
+Global planning is a waypoint sequence.
+Coordination, task allocation, and operator workload belong to the later papers.
+
+\bibliographystyle{plainnat}
+\begin{thebibliography}{99}
+
+\bibitem[Fox et~al.(1997)]{fox1997dwa}
+D.~Fox, W.~Burgard, and S.~Thrun.
+\newblock The dynamic window approach to collision avoidance.
+\newblock {\em IEEE Robotics \& Automation Magazine}, 4(1):23--33, 1997.
+
+\end{thebibliography}
+
+\end{document}

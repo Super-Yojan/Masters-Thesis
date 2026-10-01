@@ -1,0 +1,84 @@
+% Paper 1 draft — introduction only. Standalone; preamble matches thesis_outline.tex.
+% Status: first draft. Methods and experiments are not in this file.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{hyperref}
+\usepackage[numbers]{natbib}
+
+\onehalfspacing
+\title{Phone-as-Brain Feasibility for a Cheap Differential-Drive Rover\\
+\large Introduction (draft)}
+\author{Yojan Gautam}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Draft introduction for the first paper: why a phone-only rover is worth attempting, what feasibility question is still open, and what this paper will contribute.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:introduction}
+
+Disaster recovery, fire and rescue, and related tasks such as military surveillance spread across ground that is often unsafe for people to occupy for long.
+Search, inspection, communications relay, and persistent observation need presence in many places at once.
+A fleet of simple vehicles covers more of that ground than one high-end platform, if each vehicle is cheap enough to field, lose, and replace, and simple enough to power, charge, and send out again under time pressure.
+
+Robots that navigate in clutter usually carry a dedicated onboard computer: an industrial PC, a companion single-board computer, or an embedded GPU board, cabled to a separate sensor suite.
+That computer is what makes a perception pipeline and a local planner straightforward to host.
+It is also a logistics item.
+Each unit adds bill-of-materials cost, a thermal and power design, spare parts, a machine image to flash and update, and bring-up steps outside the mechanical assembly.
+A lab can absorb that overhead for a single platform.
+A first-responder unit that needs many robots pays that overhead on every unit, because each custom computer has to be charged, configured, and diagnosed before the chassis can move.
+
+A current consumer phone already holds the pieces a small rover needs for local navigation: cameras, an inertial measurement unit, radios, a battery, and a CPU and GPU able to run real-time vision, often with a depth-capable sensor as well.
+Software reaches the device as an application install.
+The premise of this thesis is to use that package as the vehicle's only onboard brain.
+An operator downloads an application, mounts the phone on a cheap differential-drive chassis, and the handset senses, computes, and commands the wheels.
+
+Phones already appear in robotics as teleoperation clients, wireless links, and extra cameras.
+What this platform still has to establish is closed-loop use on the vehicle itself.
+The phone must take images, depth, and inertial measurements, keep a local picture of nearby obstacles, and issue wheel velocities at a rate and latency that let a differential-drive rover follow waypoints and clear clutter.
+Planners in the dynamic-window family do this on differential-drive robots: each cycle they score velocities the wheels can execute, trading progress toward a goal against clearance and kinematic limits~\citep{fox1997dwa}.
+A phone application can host that class of planner.
+Whether the camera pipeline, scheduling, heat, and battery of a consumer handset leave a usable margin on a low-cost chassis, indoors and outdoors, with real depth noise, is settled by trials on the robot.
+
+This paper is the first of three that share one chassis and one application.
+It treats a single rover.
+Collaborative mapping across phones, and the human interface for supervising a fleet, come later; both assume that one phone-mounted rover can already sense, avoid, and drive.
+The research question is the following.
+
+\begin{quote}
+Can a consumer phone (application, cameras, IMU, and compute) run the sensing and control loop for a cheap differential-drive rover well enough for waypoint navigation with local obstacle avoidance, without onboard industrial compute?
+\end{quote}
+
+The author has built the autonomy stack and the human interface from the ground up.
+A rolling chassis with depth sensing and obstacle avoidance is in progress.
+This paper states the feasibility claim those experiments are meant to support, and the measurements that decide it.
+Kinematics and the planner objective are written in the methods.
+
+The planned contributions are three.
+
+\begin{enumerate}
+\item A phone-only sensing and control stack for a differential-drive rover.
+  The handset's cameras, IMU, and compute are the sole onboard means of perceiving near-field geometry and producing wheel commands.
+\item An experimental feasibility study of waypoint navigation with local obstacle avoidance.
+  Reported quantities are control and sensing loop rate, end-to-end latency, waypoint success, obstacle clearance and collisions, human interventions and emergency stops per run, and power draw together with thermal throttling.
+\item A cost and setup-time comparison against a dedicated-compute baseline on the same class of chassis, so the result is stated in operational terms as well as in navigation performance.
+\end{enumerate}
+
+\bibliographystyle{plainnat}
+\begin{thebibliography}{99}
+
+\bibitem[Fox et~al.(1997)]{fox1997dwa}
+D.~Fox, W.~Burgard, and S.~Thrun.
+\newblock The dynamic window approach to collision avoidance.
+\newblock {\em IEEE Robotics \& Automation Magazine}, 4(1):23--33, 1997.
+
+\end{thebibliography}
+
+\end{document}
