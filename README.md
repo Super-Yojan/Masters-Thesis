@@ -13,7 +13,7 @@ Academic writing and software live in separate trees. Drafts and the thesis outl
 | [`src/`](src/) | Phone app, planners, and drivers (placeholder; no code yet) |
 | [`hardware/`](hardware/) | Chassis, mounts, CAD, and hardware notes |
 | [`experiments/`](experiments/) | Logs, run configs, and evaluation scripts |
-| [`docs/`](docs/) | Short architecture notes for the software stack |
+| [`docs/`](docs/) | Short architecture notes for the software stack; current ARGOS / Terra platform summary: [`docs/ARGOS_CURRENT_SUMMARY.md`](docs/ARGOS_CURRENT_SUMMARY.md) |
 
 ## Writing
 
