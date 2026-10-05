@@ -1,0 +1,790 @@
+<!doctype html>
+<!--
+  ARGOS joining deck. Seed: simple-deck template.
+  Tokens: Qrypt. Nav script at the bottom is the seed — do not replace it.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ARGOS · Joining the project</title>
+  <style>
+    :root {
+      --bg: #f1f1ef;
+      --surface: #fafafa;
+      --fg: #171629;
+      --muted: #7a7983;
+      --border: #94949b;
+      --accent: #171629;
+      --panel: #242335;
+
+      --font-display: aeonik, Helvetica, Arial, sans-serif;
+      --font-body: aeonik, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-body);
+      font-size: 24px;
+      font-weight: 400;
+      line-height: 1.5;
+      letter-spacing: 0;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+    }
+    body::-webkit-scrollbar { display: none; }
+    p { text-wrap: pretty; }
+    h1, h2, h3 { text-wrap: balance; }
+
+    .slide {
+      flex: 0 0 100vw;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      scroll-snap-align: start;
+      padding: clamp(36px, 5vh, 72px) clamp(40px, 6vw, 96px) clamp(76px, 10vh, 108px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+    .slide.light { background: var(--bg); color: var(--fg); }
+    .slide.dark  { background: var(--fg); color: var(--bg); }
+    .slide.hero { padding-block: clamp(48px, 7vh, 96px) clamp(84px, 11vh, 120px); }
+    .slide.center { align-items: center; text-align: center; justify-content: center; }
+    .slide.center .lead,
+    .slide.center .h-hero,
+    .slide.center .quote-text,
+    .slide.center .quote-author { margin-left: auto; margin-right: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--fg);
+      margin: 0 0 20px;
+    }
+    .slide.dark .eyebrow { color: var(--bg); }
+
+    .h-hero {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: clamp(66px, 8vw, 140px);
+      line-height: 1.02;
+      letter-spacing: -0.025em;
+      margin: 0 0 20px;
+      max-width: 16ch;
+    }
+    .h-xl {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: clamp(40px, 4.2vw, 64px);
+      line-height: 1.08;
+      letter-spacing: -0.02em;
+      margin: 0 0 16px;
+      max-width: 22ch;
+    }
+    .h-md {
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: clamp(36px, 3vw, 44px);
+      line-height: 1.15;
+      letter-spacing: -0.015em;
+      margin: 0 0 12px;
+      max-width: 28ch;
+    }
+    .lead {
+      font-size: clamp(24px, 1.5vw, 28px);
+      line-height: 1.45;
+      font-weight: 400;
+      color: var(--muted);
+      max-width: 56ch;
+      margin: 0;
+    }
+    .slide.dark .lead { color: color-mix(in oklch, var(--bg) 82%, var(--fg)); }
+    .meta {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      letter-spacing: 0.02em;
+      color: var(--fg);
+    }
+    .slide.dark .meta { color: var(--bg); }
+
+    .quote-mark {
+      font-family: var(--font-display);
+      font-size: clamp(64px, 7vw, 96px);
+      line-height: 0.8;
+      font-weight: 700;
+      color: var(--fg);
+      opacity: 0.22;
+      margin: 0 0 8px;
+    }
+    .slide.dark .quote-mark { color: var(--bg); }
+    .quote-text {
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: clamp(36px, 3.2vw, 52px);
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      max-width: 18ch;
+      margin: 0 0 24px;
+    }
+    .quote-author {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--fg);
+      margin: 0;
+    }
+    .slide.dark .quote-author { color: var(--bg); }
+
+    .pt-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(20px, 2.4vw, 36px);
+      margin-top: clamp(24px, 3vh, 36px);
+      width: 100%;
+    }
+    .pt {
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+      min-width: 0;
+    }
+    .pt h3 {
+      font-family: var(--font-display);
+      font-size: 36px;
+      font-weight: 400;
+      letter-spacing: -0.015em;
+      line-height: 1.2;
+      margin: 0 0 10px;
+    }
+    .pt p {
+      color: var(--muted);
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.4;
+    }
+    .slide.dark .pt p { color: color-mix(in oklch, var(--bg) 82%, var(--fg)); }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: clamp(16px, 2vw, 28px);
+      margin-top: clamp(24px, 3vh, 36px);
+      width: 100%;
+    }
+    .step { min-width: 0; }
+    .step .nb {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      color: var(--fg);
+    }
+    .slide.dark .step .nb { color: var(--bg); }
+    .step h3 {
+      font-family: var(--font-display);
+      font-size: 36px;
+      font-weight: 400;
+      letter-spacing: -0.015em;
+      line-height: 1.2;
+      margin: 8px 0 8px;
+    }
+    .step p {
+      color: var(--muted);
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.4;
+    }
+    .slide.dark .step p { color: color-mix(in oklch, var(--bg) 82%, var(--fg)); }
+
+    .ba-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(28px, 4vw, 64px);
+      margin-top: clamp(24px, 3vh, 36px);
+      width: 100%;
+    }
+    .ba-col { min-width: 0; }
+    .ba-col .ba-label {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--fg);
+      margin: 0 0 12px;
+    }
+    .slide.dark .ba-col .ba-label { color: var(--bg); }
+    .ba-col h3 {
+      font-family: var(--font-display);
+      font-size: clamp(36px, 2.6vw, 44px);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.12;
+      margin: 0 0 14px;
+      max-width: 16ch;
+    }
+    .ba-col p {
+      color: var(--muted);
+      font-size: 24px;
+      line-height: 1.4;
+      margin: 0;
+      max-width: 36ch;
+    }
+    .slide.dark .ba-col p { color: color-mix(in oklch, var(--bg) 82%, var(--fg)); }
+    .ba-now { font-weight: 500; }
+    .factor-num {
+      font-family: var(--font-mono);
+      font-weight: 400;
+      letter-spacing: 0;
+    }
+
+    .crate {
+      font-family: var(--font-mono);
+      font-size: 0.86em;
+      letter-spacing: 0;
+    }
+
+    .deck-counter {
+      position: fixed;
+      bottom: 20px;
+      right: 24px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      color: var(--fg);
+      background: var(--surface);
+      padding: 8px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--fg);
+      z-index: 10;
+    }
+    .deck-hint {
+      position: fixed;
+      bottom: 20px;
+      left: 24px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      letter-spacing: 0.02em;
+      color: var(--fg);
+      background: var(--surface);
+      border: 1px solid var(--fg);
+      border-radius: 20px;
+      padding: 10px 14px;
+      z-index: 10;
+    }
+    .notes-toggle {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      min-height: 44px;
+      min-width: 44px;
+      padding: 10px 28px;
+      border-radius: 20px;
+      border: 1px solid var(--fg);
+      background: var(--surface);
+      color: var(--fg);
+      font-family: var(--font-body);
+      font-size: 18px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      z-index: 10;
+    }
+    .notes-toggle:hover,
+    .notes-toggle[aria-pressed="true"] {
+      background: var(--fg);
+      color: var(--bg);
+      border-color: var(--bg);
+    }
+    .notes-toggle:focus-visible,
+    .speaker-panel:focus-visible {
+      outline: 2px solid var(--fg);
+      outline-offset: 3px;
+      box-shadow: 0 0 0 5px var(--bg);
+    }
+    .deck-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: var(--muted);
+      width: 0;
+      z-index: 10;
+      transition: width 0.18s ease;
+    }
+    .speaker-panel {
+      position: fixed;
+      left: 24px;
+      right: 24px;
+      bottom: 76px;
+      z-index: 11;
+      max-width: min(68ch, calc(100vw - 48px));
+      max-height: 30vh;
+      overflow: auto;
+      background: var(--surface);
+      color: var(--fg);
+      border: 1px solid var(--fg);
+      border-radius: 20px;
+      padding: 16px 20px;
+      font-family: var(--font-body);
+      font-size: 18px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1200px) {
+      .pipeline { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 900px) {
+      .pt-grid,
+      .pipeline,
+      .ba-grid { grid-template-columns: 1fr; gap: 20px; }
+      .slide { padding-inline: 20px; justify-content: flex-start; }
+      .h-hero { font-size: clamp(36px, 11vw, 64px); }
+      .h-hero, .h-xl, .h-md, .quote-text, .ba-col h3 { max-width: 100%; }
+      .deck-hint { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      body { scroll-behavior: auto; }
+      .deck-progress { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <section class="slide hero light center" data-screen-label="01 Cover" data-od-id="slide-cover">
+    <p class="eyebrow" data-od-id="cover-eyebrow">ARGOS · Joining brief</p>
+    <h1 class="h-hero" data-od-id="cover-title">One operator.<br>Many robots.</h1>
+    <p class="lead" data-od-id="cover-lead">Adaptive Robotic Group Operator System. The supervision layer above any single platform. Terra is the first ground robot, not the whole project.</p>
+    <p class="speaker-note" hidden>Welcome them. ARGOS is the architecture for one person supervising a fleet. It is not a ground-robot project, a drone project, or a phone app. Terra is the first physical platform. The thesis starts with a homogeneous Terra fleet. The architecture must not assume wheels, a ground plane, or differential drive for every later robot.</p>
+  </section>
+
+  <section class="slide light" data-screen-label="02 The problem" data-od-id="slide-problem">
+    <p class="eyebrow" data-od-id="problem-eyebrow">The problem</p>
+    <h2 class="h-xl" data-od-id="problem-title">Continuous control does not scale.</h2>
+    <div class="pt-grid">
+      <article class="pt" data-od-id="problem-drive">
+        <h3>Per robot</h3>
+        <p>Driving or watching each vehicle spends the operator on one chassis. The fleet waits.</p>
+      </article>
+      <article class="pt" data-od-id="problem-stream">
+        <h3>Per stream</h3>
+        <p>RGB, depth, clouds, maps, and diagnostics from every robot will not fit the radio or the person.</p>
+      </article>
+      <article class="pt" data-od-id="problem-platform">
+        <h3>Per platform</h3>
+        <p>A stack that assumes wheels and a ground plane cannot supervise the next vehicle.</p>
+      </article>
+    </div>
+    <p class="speaker-note" hidden>Name the limit: human attention, not CPU count and not the radio by itself. Twenty robots streaming everything is both a bandwidth problem and a cognitive one. Platform-agnostic is a design rule. Do not let a new contributor special-case differential drive into the supervision layer.</p>
+  </section>
+
+  <section class="slide hero dark center" data-screen-label="03 The question" data-od-id="slide-question">
+    <p class="eyebrow" data-od-id="question-eyebrow">The question</p>
+    <div class="quote-mark" aria-hidden="true">“</div>
+    <p class="quote-text" data-od-id="question-quote">One operator<br>for the fleet,<br>not each robot.</p>
+    <p class="quote-author" data-od-id="question-source">ARGOS research problem</p>
+    <p class="speaker-note" hidden>Read it slowly. The working form is: what minimum local autonomy lets one operator supervise more robots? Autonomy is the variable. We are not trying to make every robot as autonomous as possible. Parallel tracks exist — monocular depth, communication, sim-to-real, mixed fleets — and they are not all required for the December experiment.</p>
+  </section>
+
+  <section class="slide light" data-screen-label="04 End state" data-od-id="slide-end">
+    <p class="eyebrow" data-od-id="end-eyebrow">Where this goes</p>
+    <h2 class="h-md" data-od-id="end-title">From a single vehicle to the mission.</h2>
+    <div class="ba-grid">
+      <article class="ba-col" data-od-id="end-before">
+        <p class="ba-label">The job today</p>
+        <h3>Drive robot #4.</h3>
+        <p>The person is the controller. Every obstacle is a driving task, and the rest of the fleet is unattended.</p>
+      </article>
+      <article class="ba-col" data-od-id="end-after">
+        <p class="ba-label ba-now">The job ARGOS is for</p>
+        <h3>Make the mission succeed.</h3>
+        <p>The person states the objective. ARGOS matches a ground rover, an aircraft, or a later platform to the work.</p>
+      </article>
+    </div>
+    <p class="speaker-note" hidden>Use the example mission: survey this area, identify obstacles, and report regions that need a closer look. A Terra is useful up close. An aerial robot is useful for a fast look. Capability matching is the long-term system. It is not the December deliverable. December is still a homogeneous Terra fleet in simulation.</p>
+  </section>
+
+  <section class="slide dark" data-screen-label="05 Autonomy" data-od-id="slide-autonomy">
+    <p class="eyebrow" data-od-id="autonomy-eyebrow">Autonomy is a variable</p>
+    <h2 class="h-md" data-od-id="autonomy-title">December uses L0 to L3.</h2>
+    <div class="pipeline">
+      <article class="step" data-od-id="level-l0">
+        <span class="nb">L0</span>
+        <h3>Teleoperation</h3>
+        <p>The person drives. The robot reports state.</p>
+      </article>
+      <article class="step" data-od-id="level-l1">
+        <span class="nb">L1</span>
+        <h3>Waypoints</h3>
+        <p>The robot drives to a point. The person clears obstacles.</p>
+      </article>
+      <article class="step" data-od-id="level-l2">
+        <span class="nb">L2</span>
+        <h3>Stop and ask</h3>
+        <p>The robot stops when the situation is unsafe, and waits.</p>
+      </article>
+      <article class="step" data-od-id="level-l3">
+        <span class="nb">L3</span>
+        <h3>Local autonomy</h3>
+        <p>The robot avoids locally. The person handles planner failure.</p>
+      </article>
+    </div>
+    <p class="speaker-note" hidden>L4 replans a route and finishes the mission. The person handles unusual exceptions. L5 coordinates tasks across robots. The person supervises the objective. Do not skip to L4. The point of L0 through L3 is a measurable difference in how often the robot consumes the operator. Stop-and-ask is a real condition, not a stub on the way to avoidance.</p>
+  </section>
+
+  <section class="slide light" data-screen-label="06 Experiment" data-od-id="slide-experiment">
+    <p class="eyebrow" data-od-id="experiment-eyebrow">The study</p>
+    <h2 class="h-xl" data-od-id="experiment-title">Fleet size crossed with autonomy.</h2>
+    <div class="ba-grid">
+      <article class="ba-col" data-od-id="factor-n">
+        <p class="ba-label">Proposed N</p>
+        <h3 class="factor-num">1, 2, 4, 8, 16</h3>
+        <p>How many robots one person is asked to supervise. These sizes are candidate conditions, not a locked protocol and not a result.</p>
+      </article>
+      <article class="ba-col" data-od-id="factor-a">
+        <p class="ba-label">Proposed A</p>
+        <h3 class="factor-num">L0 to L3</h3>
+        <p>How much each robot can do alone. Record interventions, wait time, completion, idle time, collisions, failures, bandwidth, and workload.</p>
+      </article>
+    </div>
+    <p class="speaker-note" hidden>Say proposed, not measured. The architecture note lists N as 1, 2, 4, 8, and 16, and treats that set as a candidate, not a finished study design. Metrics to instrument: human interventions, operator response time, mission completion and duration, robot idle time, collision rate, navigation failures, communication bandwidth, and operator workload. No number on this slide is an outcome.</p>
+  </section>
+
+  <section class="slide dark" data-screen-label="07 Attention" data-od-id="slide-attention">
+    <p class="eyebrow" data-od-id="attention-eyebrow">The scarce resource</p>
+    <h2 class="h-xl" data-od-id="attention-title">Human attention<br>is the limit.</h2>
+    <div class="pt-grid">
+      <article class="pt" data-od-id="attention-queue">
+        <h3>Who is first</h3>
+        <p>Several robots can ask at once. Severity, mission weight, and whether the robot can safely wait decide the queue.</p>
+      </article>
+      <article class="pt" data-od-id="attention-aware">
+        <h3>Always on</h3>
+        <p>Identity, platform, pose, velocity, mission, health, autonomy, and attention. That is the continuous picture.</p>
+      </article>
+      <article class="pt" data-od-id="attention-detail">
+        <h3>On request</h3>
+        <p>Camera, depth, occupancy, cloud, trajectory, and planner state move only when a robot asks or the operator selects it.</p>
+      </article>
+    </div>
+    <p class="speaker-note" hidden>Give the concrete ordering. A Terra that has lost localization, with an unknown safe state, outranks a Terra that has already stopped at an obstacle. The station has to answer four things: what the fleet is doing, which robots need the person, why, and what action exists. A 3D or VR station is later. Quest 3 is not the first interface.</p>
+  </section>
+
+  <section class="slide light" data-screen-label="08 Terra" data-od-id="slide-terra">
+    <p class="eyebrow" data-od-id="terra-eyebrow">First platform</p>
+    <h2 class="h-xl" data-od-id="terra-title">Terra is a rover, not the system.</h2>
+    <div class="pt-grid">
+      <article class="pt" data-od-id="terra-role">
+        <h3>One platform</h3>
+        <p>Terra is the ground reference robot. Future aircraft and other machines are not Terras with different wheels.</p>
+      </article>
+      <article class="pt" data-od-id="terra-phone">
+        <h3>The phone</h3>
+        <p>A handset is meant to carry much of the sensing and compute. The robotics code still lives in Rust, once.</p>
+      </article>
+      <article class="pt" data-od-id="terra-capability">
+        <h3>Capabilities</h3>
+        <p>ARGOS sees waypoint navigation, obstacle detection, and local mapping. Wheel radius and PWM stay in the Terra crates.</p>
+      </article>
+    </div>
+    <p class="speaker-note" hidden>Onboard order for Terra is sensors, perception, localization, local map, navigation, planning, control, then the differential-drive rover. argos-core types are RobotId, PlatformType, AutonomyLevel, AttentionState, Capability, HealthStatus. terra-core types are Pose2D, RoverState, Velocity2D, WheelVelocity, RoverDimensions. Do not put track width in the shared crate. Do not treat terra-core as a junk drawer.</p>
+  </section>
+
+  <section class="slide dark" data-screen-label="09 The stack" data-od-id="slide-stack">
+    <p class="eyebrow" data-od-id="stack-eyebrow">How code is shared</p>
+    <h2 class="h-md" data-od-id="stack-title">The algorithm is written once.</h2>
+    <div class="pipeline">
+      <article class="step" data-od-id="stack-rust">
+        <span class="nb">01</span>
+        <h3>Rust</h3>
+        <p>One planner, shared by simulation and both phone shells.</p>
+      </article>
+      <article class="step" data-od-id="stack-shells">
+        <span class="nb">02</span>
+        <h3>Phone shells</h3>
+        <p>iOS and Android own cameras, permissions, lifecycle, and adapters.</p>
+      </article>
+      <article class="step" data-od-id="stack-depth">
+        <span class="nb">03</span>
+        <h3>One depth type</h3>
+        <p>LiDAR, monocular depth, and simulation share one DepthFrame.</p>
+      </article>
+      <article class="step" data-od-id="stack-frames">
+        <span class="nb">04</span>
+        <h3>Body frame</h3>
+        <p>Forward is +x, left is +y, and up is +z. Convert before planning.</p>
+      </article>
+    </div>
+    <p class="speaker-note" hidden>UniFFI is the intended binding from Rust to Swift and Kotlin. It is not in the repository yet. Name transforms camera_to_body and body_to_world. ARKit, Android, and simulator frames do not reach the planner. The monocular question is not which model has the lowest depth error. It is whether the depth produces safe navigation. Compare simulator ground truth, iPhone LiDAR, and monocular depth through the same occupancy grid and planner.</p>
+  </section>
+
+  <section class="slide light" data-screen-label="10 Repository" data-od-id="slide-repo">
+    <p class="eyebrow" data-od-id="repo-eyebrow">Where things live</p>
+    <h2 class="h-xl" data-od-id="repo-title">Separate the system from the robot.</h2>
+    <p class="lead" data-od-id="repo-lead">This is the split to maintain. The thesis repository today holds the writing. Robot code is not in it yet.</p>
+    <div class="pt-grid">
+      <article class="pt" data-od-id="repo-shared">
+        <h3>ARGOS-wide</h3>
+        <p><span class="crate">argos-core</span>, <span class="crate">argos-protocol</span>, comms, mission, supervisor. Concepts any robot can share.</p>
+      </article>
+      <article class="pt" data-od-id="repo-platform">
+        <h3>Terra</h3>
+        <p>Perception, map, nav, planner, control, and sim. An aerial platform would repeat this split, not borrow wheel types.</p>
+      </article>
+      <article class="pt" data-od-id="repo-apps">
+        <h3>Apps and runs</h3>
+        <p><span class="crate">argos-station</span>, the phone shells, and experiments. A protocol change is an API change.</p>
+      </article>
+    </div>
+    <p class="speaker-note" hidden>Be precise about the repos. This thesis repository holds papers, thesis, and docs. Paper 1 has an introduction and a problem formulation. Papers 2 and 3 are placeholders. Rover code is in Terra. The operator layer is in ARGOS. Zenoh is the current bus. cmd_vel is a temporary debug twist. The operator contract is go-to-waypoint: missions and goals, not a stream of twists. The phone-local VLA is Gemma-class on TerraPhone. ARGOS ranks attention and maps operator language to commands. Think in message schemas. Do not invent a private JSON format inside a feature. The live note is docs/ARGOS_CURRENT_SUMMARY.md.</p>
+  </section>
+
+  <section class="slide dark" data-screen-label="11 Maintenance" data-od-id="slide-maintain">
+    <p class="eyebrow" data-od-id="maintain-eyebrow">How the stack stays coherent</p>
+    <h2 class="h-xl" data-od-id="maintain-title">Keep the stack boring on purpose.</h2>
+    <div class="pt-grid">
+      <article class="pt" data-od-id="maintain-bounds">
+        <h3>One job each</h3>
+        <p>A crate has one responsibility. Geometry comes from a mature math library. Interfaces are named and documented.</p>
+      </article>
+      <article class="pt" data-od-id="maintain-sim">
+        <h3>Match the question</h3>
+        <p>2D sim for navigation. A physics sim when slip matters. A visual sim when the question is the camera.</p>
+      </article>
+      <article class="pt" data-od-id="maintain-control">
+        <h3>PID before LQR</h3>
+        <p>DWA is the local planner. Wheel-velocity PID comes first. LQR waits for a failure PID cannot fix.</p>
+      </article>
+    </div>
+    <p class="speaker-note" hidden>terra-sim needs pose, heading, velocity, goals, obstacles, collision, and time. The model is x-dot = v cos theta, y-dot = v sin theta, theta-dot = omega. MuJoCo is for friction, slip, inertia, motors, and slopes. Unreal is for monocular RGB, lighting, and camera placement. DWA samples v and omega, rejects collisions, and scores heading, clearance, and forward progress. A-star, later, answers where to go. DWA answers how to move safely now. Inside the code, use meters, seconds, and radians. Convert at the hardware and UI boundary.</p>
+  </section>
+
+  <section class="slide light" data-screen-label="12 Expectations" data-od-id="slide-expectations">
+    <p class="eyebrow" data-od-id="expect-eyebrow">What we expect</p>
+    <h2 class="h-xl" data-od-id="expect-title">Leave a test, a log, and a boundary.</h2>
+    <div class="pt-grid">
+      <article class="pt" data-od-id="expect-api">
+        <h3>An interface</h3>
+        <p>Plan from state, map, and goal. Not a long list of loose numbers. Someone else has to call it.</p>
+      </article>
+      <article class="pt" data-od-id="expect-evidence">
+        <h3>Evidence</h3>
+        <p>Tests for distance, projection, and rejected collisions. Logs with a time and a robot id. A config that can be rerun.</p>
+      </article>
+      <article class="pt" data-od-id="expect-scope">
+        <h3>Restraint</h3>
+        <p>No new SLAM, physics engine, VR shell, or custom network stack unless this architecture cannot do the job.</p>
+      </article>
+    </div>
+    <p class="speaker-note" hidden>A change should carry the implementation, the tests, the note, and the config. Example tests: waypoint distance, a center depth pixel projects forward, DWA rejects a colliding trajectory, a Terra reaches a clear goal. Log mission start and completion, collision, attention requested and received, intervention, planner failure, localization failure, stop, and resume. A rerun record names fleet size, autonomy level, environment, and seed. Keep reviews small. Do not rewrite mapping, networking, and coordinate frames in one branch. Gaussian splatting, LQR, and a custom protocol need a written reason.</p>
+  </section>
+
+  <section class="slide dark" data-screen-label="13 December" data-od-id="slide-december">
+    <p class="eyebrow" data-od-id="december-eyebrow">December defense</p>
+    <h2 class="h-md" data-od-id="december-title">Four milestones. Then stop adding features.</h2>
+    <div class="pipeline">
+      <article class="step" data-od-id="mile-one">
+        <span class="nb">01</span>
+        <h3>One Terra</h3>
+        <p>A simulated rover reaches a goal, then handles an obstacle.</p>
+      </article>
+      <article class="step" data-od-id="mile-two">
+        <span class="nb">02</span>
+        <h3>A fleet</h3>
+        <p>Several Terras run independent missions and share one protocol.</p>
+      </article>
+      <article class="step" data-od-id="mile-three">
+        <span class="nb">03</span>
+        <h3>A station</h3>
+        <p>The operator sees fleet state and an attention queue.</p>
+      </article>
+      <article class="step" data-od-id="mile-four">
+        <span class="nb">04</span>
+        <h3>Freeze</h3>
+        <p>Collect data, analyze it, write, and validate. Features wait.</p>
+      </article>
+    </div>
+    <p class="speaker-note" hidden>The critical chain is simulation, waypoint navigation, obstacle detection, stop-and-ask, DWA, multi-Terra simulation, the station, attention requests, then the supervision experiment. Milestone one is goal, then obstacle, then local avoidance. After the system can run the study, engineering yields to data collection, analysis, writing, and validation. Extra work is welcome only when it does not put that chain at risk.</p>
+  </section>
+
+  <section class="slide hero light center" data-screen-label="14 Start here" data-od-id="slide-start">
+    <p class="eyebrow" data-od-id="start-eyebrow">If you are joining</p>
+    <h2 class="h-hero" data-od-id="start-title">Measure the<br>supervision.</h2>
+    <p class="lead" data-od-id="start-lead">Take one subsystem inside that chain. Keep its boundary. Leave a test, a log, and the assumption in writing.</p>
+    <p class="speaker-note" hidden>Short-term success: one operator supervises several simulated Terras at different autonomy levels, and ARGOS measures workload and fleet performance. Medium-term: the same autonomy code runs on a physical Terra, with LiDAR and monocular depth interchangeable. Long-term: the person states mission intent, and ARGOS coordinates ground, air, and later platforms. Send them to docs/ARGOS_CURRENT_SUMMARY.md before they open a crate.</p>
+  </section>
+
+  <div class="deck-progress" id="deck-progress" aria-hidden="true"></div>
+  <div class="deck-counter" id="deck-counter">1 / 14</div>
+  <div class="deck-hint">← / → · N notes</div>
+  <button type="button" class="notes-toggle" id="notes-toggle" data-od-id="notes-toggle" aria-pressed="false">Notes</button>
+  <div class="speaker-panel" id="speaker-panel" data-od-id="speaker-panel" hidden tabindex="-1"></div>
+
+  <script>
+    /*
+      Five hard rules for deck nav inside an iframe (the OD preview is one).
+      The naive `document.body.scrollLeft` pattern silently fails: clicks
+      register, but keyboard does nothing, and the counter freezes at "1 / N"
+      while the user is on slide 6.
+
+      1. Detect the real scroller — body OR documentElement, depending.
+      2. Listen for scroll on BOTH window and document, capture phase.
+      3. Listen for keydown on BOTH window and document, capture phase.
+      4. Auto-focus body so arrow keys work without an upfront click.
+      5. Never use Element.scrollIntoView — it can yank the host page.
+    */
+    (function () {
+      var slides   = document.querySelectorAll('.slide');
+      var counter  = document.getElementById('deck-counter');
+      var progress = document.getElementById('deck-progress');
+      var KEY      = 'od-deck-pos';
+      var active   = 0;
+
+      function scrollContainers() {
+        return [document.scrollingElement, document.documentElement, document.body]
+          .filter(Boolean)
+          .filter(function (el, idx, arr) { return arr.indexOf(el) === idx; });
+      }
+      function overflowX(el) {
+        if (!el) return 0;
+        return Math.max(0, (el.scrollWidth || 0) - (el.clientWidth || 0));
+      }
+      function scrollLeftOf(el) {
+        if (!el) return 0;
+        try { return Number(el.scrollLeft) || 0; } catch (_) { return 0; }
+      }
+      function activeScrollLeft() {
+        var candidates = scrollContainers();
+        var best = 0;
+        for (var i = 0; i < candidates.length; i++) {
+          var left = scrollLeftOf(candidates[i]);
+          if (Math.abs(left) > Math.abs(best)) best = left;
+        }
+        return best;
+      }
+      function scroller() {
+        var candidates = scrollContainers();
+        var best = candidates[0] || document.documentElement;
+        var bestScore = -1;
+        for (var i = 0; i < candidates.length; i++) {
+          var el = candidates[i];
+          var score = overflowX(el) + Math.abs(scrollLeftOf(el)) * 2;
+          if (score > bestScore) {
+            best = el;
+            bestScore = score;
+          }
+        }
+        return best;
+      }
+      function scrollToLeft(left, behavior) {
+        var candidates = scrollContainers();
+        for (var i = 0; i < candidates.length; i++) {
+          try { candidates[i].scrollLeft = left; } catch (_) {}
+          try { candidates[i].scrollTo({ left: left, behavior: behavior || 'smooth' }); } catch (_) {}
+        }
+      }
+      function setActive(i) {
+        active = i;
+        if (counter)  counter.textContent  = (i + 1) + ' / ' + slides.length;
+        if (progress) progress.style.width = (((i + 1) / slides.length) * 100) + '%';
+        try { localStorage.setItem(KEY, String(i)); } catch (_) {}
+      }
+      function go(i) {
+        var next = Math.max(0, Math.min(slides.length - 1, i));
+        setActive(next);
+        scrollToLeft(next * window.innerWidth, 'smooth');
+      }
+      function syncFromScroll() {
+        var i = Math.round(activeScrollLeft() / window.innerWidth);
+        if (i !== active && i >= 0 && i < slides.length) setActive(i);
+      }
+      function onKey(e) {
+        if (e.defaultPrevented) return;
+        var t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+        if      (e.key === 'ArrowRight' || e.key === ' '       || e.key === 'PageDown') { e.preventDefault(); go(active + 1); }
+        else if (e.key === 'ArrowLeft'  || e.key === 'PageUp')                            { e.preventDefault(); go(active - 1); }
+        else if (e.key === 'Home')                                                        { e.preventDefault(); go(0); }
+        else if (e.key === 'End')                                                         { e.preventDefault(); go(slides.length - 1); }
+      }
+
+      window.addEventListener('keydown', onKey, true);
+      document.addEventListener('keydown', onKey, true);
+      document.addEventListener('scroll', syncFromScroll, { passive: true, capture: true });
+      window.addEventListener('scroll', syncFromScroll,   { passive: true });
+
+      document.body.setAttribute('tabindex', '-1');
+      document.body.style.outline = 'none';
+      function focusDeck() { try { window.focus(); document.body.focus({ preventScroll: true }); } catch (_) {} }
+      document.addEventListener('mousedown', focusDeck);
+      window.addEventListener('load', focusDeck);
+      focusDeck();
+
+      try {
+        var saved = parseInt(localStorage.getItem(KEY) || '0', 10);
+        if (!isNaN(saved) && saved >= 0 && saved < slides.length) {
+          setActive(saved);
+          scrollToLeft(saved * window.innerWidth, 'instant');
+        } else {
+          setActive(0);
+        }
+      } catch (_) { setActive(0); }
+    })();
+  </script>
+  <script>
+    (function () {
+      var slides = document.querySelectorAll('.slide');
+      var panel = document.getElementById('speaker-panel');
+      var btn = document.getElementById('notes-toggle');
+      var open = false;
+
+      function index() {
+        try {
+          var n = parseInt(localStorage.getItem('od-deck-pos') || '0', 10);
+          if (isNaN(n) || n < 0 || n >= slides.length) return 0;
+          return n;
+        } catch (_) { return 0; }
+      }
+      function render() {
+        if (!panel) return;
+        var note = slides[index()].querySelector('.speaker-note');
+        panel.textContent = note ? note.textContent : '';
+        panel.hidden = !open;
+        if (btn) btn.setAttribute('aria-pressed', open ? 'true' : 'false');
+      }
+      function toggle() {
+        open = !open;
+        render();
+      }
+      if (btn) btn.addEventListener('click', toggle);
+      function onKey(e) {
+        var t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+        if (e.key === 'n' || e.key === 'N') {
+          e.preventDefault();
+          toggle();
+          return;
+        }
+        if (open) requestAnimationFrame(render);
+      }
+      document.addEventListener('keydown', onKey, true);
+      document.addEventListener('scroll', function () { if (open) render(); }, true);
+      window.addEventListener('scroll', function () { if (open) render(); });
+      render();
+    })();
+  </script>
+</body>
+</html>

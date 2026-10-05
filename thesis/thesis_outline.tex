@@ -18,7 +18,8 @@ Phone-as-Brain Rovers with Depth Sensing, Obstacle Avoidance, and Fleet Command 
 \begin{abstract}
 This thesis investigates low-cost multi-robot autonomous fleets for disaster recovery and related high-stakes settings such as military surveillance and fire and rescue.
 Each rover treats a consumer mobile phone as the primary sensor, brain, and compute node: an operator downloads an app and mounts the phone on a simple chassis, rather than provisioned industrial compute.
-The work covers depth sensing and local obstacle avoidance on the vehicle, multi-robot coordination primitives, and a human command interface spanning HUD, VR, and AR styles so one operator can supervise a fleet.
+Terra is that rover and runs local autonomy. ARGOS is the fleet operator layer: it sends high-level missions and waypoints, and it schedules which vehicle needs human attention.
+The work covers depth sensing and local obstacle avoidance on the vehicle, multi-robot coordination primitives, and that operator interface so one person can supervise a fleet.
 The author has implemented the autonomy stack and human interface from the ground up; a rolling chassis with depth sensing and obstacle avoidance is currently in progress.
 The goal is a practical, affordable path from phone-mounted robots to one-to-many fleet supervision in environments where existing platforms are too expensive, brittle, or operationally heavy.
 \end{abstract}
@@ -44,6 +45,7 @@ Gaps highlighted include cost barriers, phone-centric compute stacks, and end-to
 \label{sec:platform}
 The platform chapter describes the physical and software stack that makes a phone-mounted rover practical.
 It covers the rolling chassis, mounting of the phone as the main sensor and compute node, the downloadable app that turns the handset into the vehicle brain, and depth sensing used for near-field geometry.
+Terra owns sensing, mapping, planning, and drive. ARGOS owns fleet commands and attention scheduling, and does not stream low-level velocity as the operator contract; go-to-waypoint is the intended command, and a twist topic is only a temporary debug path.
 Implementation status is stated clearly: autonomy and interface software built ground-up by the author, with a rolling chassis, depth sensor, and obstacle avoidance currently progressing toward a repeatable demo.
 
 \section{Autonomy}
@@ -55,14 +57,15 @@ Open work (integration with waypoint navigation, multi-obstacle replanning) is d
 
 \section{Human Interface}
 \label{sec:hmi}
-The human interface chapter presents HUD, VR, and AR command-center options for controlling a fleet from one operator seat.
-It explains attention-needed indicators, map-centric views of each rover's pose and state, and design tradeoffs among lightweight HUD overlays, immersive VR maps, and AR situating of fleet status in the operator's workspace.
+The human interface chapter presents the ARGOS dashboard for one operator seat, including attention-needed indicators and map-centric views of each rover's pose and state.
+An urgency classifier ranks which vehicle needs the person first. HUD, VR, and AR layouts are interface options around that scheduler, not a replacement for it.
 The narrative ties interface design to autonomy level: richer onboard avoidance should reduce continuous control load and increase the practical fleet size one person can supervise.
 
 \section{Evaluation Across Scenarios}
 \label{sec:evaluation}
 Evaluation plans cover single-robot obstacle courses, sequential multi-obstacle navigation, and multi-robot scenarios relevant to disaster recovery, fire and rescue, and surveillance-style coverage.
-Candidate metrics include waypoint success, clearance, interventions per robot, operator response time, task completion, and subjective workload as fleet size and autonomy level vary.
+The primary factors are fleet size \(N\) and autonomy level \(A\).
+Candidate metrics include waypoint success, clearance, interventions per robot, operator response time to an attention request, task completion, and NASA-TLX workload as \(N\) and \(A\) vary.
 This section also outlines expected failure modes (depth noise, actuation calibration limits, interface attention bottlenecks) and what would constitute a convincing demo versus a controlled study.
 
 \bibliographystyle{plainnat}

@@ -2,7 +2,7 @@
 
 Cheap multi-robot autonomous fleets for disaster recovery (also military surveillance, fire/rescue): consumer phones as sensor/brain/compute on rolling chassis, collaborative mapping, and a one-human multi-fleet command interface.
 
-Academic writing and software live in separate trees. Drafts and the thesis outline stay under `papers/` and `thesis/`. Application and robot code goes under `src/`.
+Drafts and the thesis outline stay under `papers/` and `thesis/`. The running rover and operator code are separate repositories (see Platforms). `src/` is only a placeholder for thesis-local scripts.
 
 ## Layout
 
@@ -13,7 +13,8 @@ Academic writing and software live in separate trees. Drafts and the thesis outl
 | [`src/`](src/) | Phone app, planners, and drivers (placeholder; no code yet) |
 | [`hardware/`](hardware/) | Chassis, mounts, CAD, and hardware notes |
 | [`experiments/`](experiments/) | Logs, run configs, and evaluation scripts |
-| [`docs/`](docs/) | Short architecture notes for the software stack; current ARGOS / Terra platform summary: [`docs/ARGOS_CURRENT_SUMMARY.md`](docs/ARGOS_CURRENT_SUMMARY.md) |
+| [`docs/`](docs/) | Short architecture notes; current ARGOS / Terra summary: [`docs/ARGOS_CURRENT_SUMMARY.md`](docs/ARGOS_CURRENT_SUMMARY.md) |
+| [`presentation/`](presentation/) | ARGOS joining deck and slide templates |
 
 ## Writing
 
@@ -27,12 +28,16 @@ Academic writing and software live in separate trees. Drafts and the thesis outl
 
 1. [Phone-as-brain feasibility](papers/paper1-phone-as-brain/) (single rover) — introduction and problem formulation in draft
 2. [Multi-phone collaborative SLAM / shared maps](papers/paper2-collaborative-slam/)
-3. [One-human multi-fleet collaboration dashboard](papers/paper3-fleet-dashboard/)
+3. [Dashboard and attention scheduling (ARGOS)](papers/paper3-fleet-dashboard/)
 
 ## Adding code
 
-Put new software in [`src/`](src/README.md): the phone app, local planners, and chassis drivers. Hardware notes go in [`hardware/`](hardware/README.md). Run logs, configs, and eval scripts go in [`experiments/`](experiments/README.md). Short architecture notes go in [`docs/`](docs/README.md).
+Platform code goes in Terra or ARGOS, not in this repository. Thesis-local scripts can go in [`src/`](src/README.md). Hardware notes go in [`hardware/`](hardware/README.md). Run logs, configs, and eval scripts go in [`experiments/`](experiments/README.md). Short architecture notes go in [`docs/`](docs/README.md).
+
+## Platforms
+
+Writing stays in this repository. Rover code is [Terra](https://github.com/Super-Yojan/Terra) (local autonomy, phone-as-brain). The operator layer is [ARGOS](https://github.com/Super-Yojan/ARGOS) (missions and waypoints, attention scheduling). The split, the temporary `cmd_vel` debug path, and the go-to-waypoint contract are in [`docs/ARGOS_CURRENT_SUMMARY.md`](docs/ARGOS_CURRENT_SUMMARY.md).
 
 ## Status
 
-Working draft materials. Not a final thesis document. Application code is not in this repository yet.
+Working draft materials. Not a final thesis document. Application code is not in this repository.

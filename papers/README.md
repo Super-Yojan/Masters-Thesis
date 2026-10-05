@@ -8,6 +8,6 @@ Research questions and metrics are in [`thesis/papers_research_questions.md`](..
 | --- | --- | --- |
 | [`paper1-phone-as-brain/`](paper1-phone-as-brain/) | Phone-as-brain feasibility (single rover) | Introduction and problem formulation drafted |
 | [`paper2-collaborative-slam/`](paper2-collaborative-slam/) | Multi-phone collaborative SLAM / shared maps | Placeholder |
-| [`paper3-fleet-dashboard/`](paper3-fleet-dashboard/) | One-human multi-fleet collaboration dashboard | Placeholder |
+| [`paper3-fleet-dashboard/`](paper3-fleet-dashboard/) | ARGOS dashboard and attention scheduling | Placeholder |
 
 Robot and application code belongs in [`src/`](../src/).

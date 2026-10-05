@@ -1,3 +1,10 @@
+# macOS / editor
+.DS_Store
+.zed/
+
+# Local slide-template build scratch (absolute machine paths and a node_modules symlink)
+presentation/.template-build/
+
 # LaTeX build artifacts
 *.aux
 *.log
