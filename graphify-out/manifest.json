@@ -1,0 +1,77 @@
+{
+  "/Users/yojan/git/Masters-Thesis/README.md": {
+    "mtime": 1791236231.312199,
+    "ast_hash": "5c8dba432275b5f5e3b122e848a3670d",
+    "semantic_hash": "5c8dba432275b5f5e3b122e848a3670d"
+  },
+  "/Users/yojan/git/Masters-Thesis/docs/ARGOS_CURRENT_SUMMARY.md": {
+    "mtime": 1791236209.876729,
+    "ast_hash": "16107489a6cd4ad8c60737b4fc81e9db",
+    "semantic_hash": "16107489a6cd4ad8c60737b4fc81e9db"
+  },
+  "/Users/yojan/git/Masters-Thesis/docs/README.md": {
+    "mtime": 1791087300.0289478,
+    "ast_hash": "0797275f0c3371cefab543074e535a51",
+    "semantic_hash": "0797275f0c3371cefab543074e535a51"
+  },
+  "/Users/yojan/git/Masters-Thesis/experiments/README.md": {
+    "mtime": 1791087300.0290368,
+    "ast_hash": "9e453ec75973bdf6221eb2e9317cedae",
+    "semantic_hash": "9e453ec75973bdf6221eb2e9317cedae"
+  },
+  "/Users/yojan/git/Masters-Thesis/hardware/README.md": {
+    "mtime": 1791087300.0291152,
+    "ast_hash": "72cbf99380e27b0eb9db66b305d300c2",
+    "semantic_hash": "72cbf99380e27b0eb9db66b305d300c2"
+  },
+  "/Users/yojan/git/Masters-Thesis/papers/README.md": {
+    "mtime": 1791236209.8405807,
+    "ast_hash": "74c5c0e45e70d48a9e58eb0745e9d562",
+    "semantic_hash": "74c5c0e45e70d48a9e58eb0745e9d562"
+  },
+  "/Users/yojan/git/Masters-Thesis/papers/paper1-phone-as-brain/README.md": {
+    "mtime": 1791087300.0293732,
+    "ast_hash": "e646ba134856242049ac83661fbed754",
+    "semantic_hash": "e646ba134856242049ac83661fbed754"
+  },
+  "/Users/yojan/git/Masters-Thesis/papers/paper2-collaborative-slam/README.md": {
+    "mtime": 1791087300.0305848,
+    "ast_hash": "8b50c66b541aa39503ef87973d8fb33a",
+    "semantic_hash": "8b50c66b541aa39503ef87973d8fb33a"
+  },
+  "/Users/yojan/git/Masters-Thesis/papers/paper3-fleet-dashboard/README.md": {
+    "mtime": 1791236209.8446712,
+    "ast_hash": "a87421789c64135a78bb36cc82aa8b72",
+    "semantic_hash": "a87421789c64135a78bb36cc82aa8b72"
+  },
+  "/Users/yojan/git/Masters-Thesis/presentation/argos-onboarding-deck.html": {
+    "mtime": 1791236209.8718815,
+    "ast_hash": "b998d349387008553fd657c4f01e24f3",
+    "semantic_hash": "b998d349387008553fd657c4f01e24f3"
+  },
+  "/Users/yojan/git/Masters-Thesis/src/README.md": {
+    "mtime": 1791087300.0307682,
+    "ast_hash": "1634b0059c07bcb055ab67d59de1ff1e",
+    "semantic_hash": "1634b0059c07bcb055ab67d59de1ff1e"
+  },
+  "/Users/yojan/git/Masters-Thesis/thesis/papers_research_questions.md": {
+    "mtime": 1791236210.0958967,
+    "ast_hash": "a70a6d705ef9f64fe33134554505f148",
+    "semantic_hash": "a70a6d705ef9f64fe33134554505f148"
+  },
+  "/Users/yojan/git/Masters-Thesis/papers/paper1-phone-as-brain/introduction.pdf": {
+    "mtime": 1791087300.0297728,
+    "ast_hash": "461ac5b33b5b47989d37b475c6a38f4f",
+    "semantic_hash": "461ac5b33b5b47989d37b475c6a38f4f"
+  },
+  "/Users/yojan/git/Masters-Thesis/papers/paper1-phone-as-brain/problem_formulation.pdf": {
+    "mtime": 1791087300.0303946,
+    "ast_hash": "be7bf81d7c66c2200b08e3e11384a9ec",
+    "semantic_hash": "be7bf81d7c66c2200b08e3e11384a9ec"
+  },
+  "/Users/yojan/git/Masters-Thesis/thesis/thesis_outline.pdf": {
+    "mtime": 1791236221.7289338,
+    "ast_hash": "a5bd1bfcba0cc4245ab98194c05a9bac",
+    "semantic_hash": "a5bd1bfcba0cc4245ab98194c05a9bac"
+  }
+}
