@@ -1,0 +1,201 @@
+\documentclass[12pt,oneside]{report}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,booktabs,array,longtable}
+\usepackage{xcolor,graphicx}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\setlength{\emergencystretch}{3em}
+\newcommand{\todo}[1]{\par\noindent\textcolor{red!65!black}{\textbf{TODO:} #1}\par}
+\newcommand{\pending}{\textit{TODO: not collected}}
+\newcommand{\draftnotice}{\begin{center}\fbox{\parbox{0.91\linewidth}{\textbf{Research draft / proposed protocol.} No ARGOS results were supplied. All experiments are proposed; all result cells are uncollected. Hypotheses are predictions, not findings. Implementation status must be verified before claims of deployment.}}\end{center}}
+\newcommand{\figplaceholder}[2]{\begin{figure}[htbp]\centering\fbox{\parbox{0.88\linewidth}{\centering\vspace{1em}\textbf{TODO figure:} #1\vspace{1em}}}\caption{#2 (planned figure; no measured data).}\end{figure}}
+
+\title{Project ARGOS: Minimum Autonomy Requirements for One Human to Supervise Multiple Terra Rovers}
+\author{TODO: student name\\TODO: department and institution}
+\date{Master's thesis draft\\October 1, 2026}
+\begin{document}
+\begin{titlepage}\maketitle\end{titlepage}
+\draftnotice
+\chapter*{Degree and institutional information}
+This is a generic master's thesis source draft. \todo{Insert official degree name, supervisor, committee, institution, submission date, approval/signature pages, and required formatting. Use ``dissertation'' only if required by the institution; this draft does not assert a doctoral contribution or degree status.}
+\chapter*{Abstract}
+Project ARGOS investigates how much local autonomy an individual Terra rover needs for one human to supervise a fleet. This thesis proposes a simulation-first comparison of L0 teleoperation, L1 waypoint following, L2 stop-and-ask, and L3 local obstacle avoidance. The planned experiment varies fleet size and scenario difficulty while measuring safe goal completion, operator interventions, attention delays, and workload. A sufficient level is defined by prespecified performance, safety, workload, and response criteria, with uncertainty carried into the decision. The platform separates robot-local navigation from fleet awareness and human assistance. Attention-based communication, queue prioritization, alternative depth sources, and field transfer are supporting directions rather than prerequisites for the core study. \todo{Insert final participant and trial counts, main effect estimates, threshold-based minimum-autonomy conclusions, and limitations after collection. No empirical result is available.}
+\chapter*{Acknowledgements}
+\todo{Add acknowledgements only with accurate names, roles, and permissions.}
+\tableofcontents\listoffigures\listoftables
+\chapter{Introduction}
+The central ARGOS question is: \emph{What is the minimum tested local autonomy that permits one human to supervise multiple Terra rovers while satisfying declared mission, safety, workload, and response-time requirements?} The relevant unit of improvement is supervision of a fleet under specified conditions, rather than increasing algorithmic complexity on one rover. A rover that stops reliably may be safer than waypoint following but still create more assistance requests than one operator can resolve.
+
+ARGOS denotes the fleet supervision platform. Terra denotes an individual ground rover, including its sensing, local navigation, and actuation. The thesis investigates an autonomy-by-fleet-size relationship; it does not assume that more autonomy always lowers workload or that sixteen physical rovers are available. The intended thesis contribution is an operational definition of sufficient autonomy, a reproducible simulator and supervision protocol, and an empirical estimate over the tested conditions.
+\section{Scope and proposed contribution}
+The core evaluation is simulation-first and compares L0--L3 only. L4 mission autonomy, including global planning and recovery, and L5 coordinated fleet autonomy remain future work. The thesis does not require VR, photorealistic reconstruction, decentralized mapping, novel depth estimation, or a large physical fleet. Local obstacle avoidance is not equivalent to mission-level reasoning. Selective communication and queue policies must be fixed in the main study so they do not confound the autonomy manipulation.
+
+A favorable result would identify an operational envelope in which the lowest sufficient level is supported with uncertainty. An inconclusive or negative result remains useful if it identifies a supervision bottleneck and shows that none of the tested levels meets the criteria. \todo{Finalize thesis contribution language after the literature review and executed experiments; avoid unsupported ``first system'' claims.}
+\section{Research questions and hypotheses}
+RQ1 asks how autonomy and fleet size jointly affect safe completion, intervention demand, and workload. H1 predicts lower intervention exposure at L3 than L2 when obstacles are locally avoidable. RQ2 asks whether L2's hazard stops transfer burden to the operator queue. H2 predicts increasing unresolved-request delay under clustered blockages as fleet size rises. RQ3 asks which tested level meets the joint sufficiency criteria. H3 predicts that the minimum depends on both fleet size and scenario difficulty. RQ4 explores whether prior experience and learning affect these relations. Hypotheses are not findings, and all expected directions may be contradicted.
+\section{Document map}
+Chapter 2 introduces the conceptual background and evidence gaps. Chapter 3 specifies ARGOS and Terra. Chapter 4 defines autonomy and sufficient supervision. Chapter 5 describes the proposed study and analysis. Chapter 6 provides empty result structures. Chapter 7 interprets possible outcomes and limitations. Chapter 8 situates supporting research directions. Chapter 9 supplies a conclusion scaffold. Appendices define logging and execution gates.
+\chapter{Background and Related Work}
+\section{Human supervision and robot neglect}
+A useful background lens is the relation between time a robot can be left unattended and effort required to interact with it. \todo{Add a verified literature synthesis on neglect tolerance, fan-out, supervisory control, and multi-robot attention; do not infer a feasible fleet ratio from a simplistic average-service calculation.}
+For planning only, if requests arrive at aggregate rate $\lambda$ and average human service duration is $E[T_s]$, $\rho=\lambda E[T_s]$ describes an idealized single-server load. It is not a human-capacity estimator: bursts, switching costs, severity, dependence, and variable service times can invalidate assumptions. The experiment therefore measures tails, missed deadlines, and workload alongside means.
+\section{Navigation and autonomy}
+The dynamic window approach searches feasible local velocity commands and evaluates collision avoidance \citep{fox1997dwa}. In this thesis it is a candidate L3 mechanism, not a novel planner claim. \todo{Document the actual implementation, collision checking, braking horizon, footprint, parameter selection, and limits once verified.}
+\section{Workload assessment}
+NASA-TLX supplies a workload measurement foundation \citep{hart1988tlx}. This study proposes Raw TLX with all six dimensions retained. Subjective workload alone cannot establish effective supervision, so objective mission and safety measures accompany it. \todo{Add verified sources on Raw TLX aggregation, situation awareness, trust, and multi-robot interface evaluation before publication.}
+\section{Perception and transfer}
+Depth Anything V2 provides a candidate monocular model family \citep{yang2024depth}; Apple documents scene-depth point-cloud construction \citep{appleSceneDepth}. Neither source proves Terra navigation adequacy. These sources motivate adapters and comparisons; task-specific adequacy must be measured. \todo{Expand related work on task-relevant depth, event-driven communication, scheduling, and sim-to-real evaluation. The present bibliography is a seed, not an exhaustive review.}
+\chapter{ARGOS and Terra Architecture}
+ARGOS is the supervision layer; Terra is one rover. The proposed rover stack separates shared types (\texttt{terra-core}), geometry (\texttt{terra-math}), depth processing (\texttt{terra-perception}), occupancy mapping (\texttt{terra-map}), waypoint state (\texttt{terra-nav}), local planning (\texttt{terra-planner}), actuation (\texttt{terra-control}), communications (\texttt{terra-comms}), attention state (\texttt{terra-supervisor}), simulation (\texttt{terra-sim}), and mobile bindings (\texttt{terra-mobile}). Names describe the intended modular boundary, not evidence that these modules have been implemented.
+
+Terra converts timestamped observations into a local map, selects a motion command, and enforces its local safety policy without depending on a round trip to ARGOS. ARGOS maintains fleet state, an attention queue, and an operator-selected detailed view. MQTT is the proposed transport for state, commands, and attention events; high-volume payload transport remains an implementation decision. Telemetry contains rover identifier, sequence number, acquisition time, pose, velocity, autonomy level, mission state, health, and freshness. Attention events carry a unique event identifier, reason, severity, onset time, acknowledgement state, and resolution time. Commands carry a unique identifier, destination, expiry, and acknowledgement. Reconnection must not replay stale motion commands; retain policies and deduplication behavior must be tested.
+
+A depth-source adapter returns metric depth, intrinsics, extrinsics, a validity/confidence mask, and acquisition time. The proposed common body frame is forward/left/up. Sensor-specific frame transforms, resizing, cropping, and timestamp offsets belong at the adapter boundary. L3 uses local obstacle avoidance, with the dynamic window approach as a candidate planner \citep{fox1997dwa}; local avoidance does not imply global route planning or inter-rover coordination.
+
+\section{Motion and mapping assumptions}
+The initial simulator uses a differential-drive/unicycle model:
+\[\dot{x}=v\cos\theta,\quad\dot{y}=v\sin\theta,\quad\dot{\theta}=\omega.\]
+Integrate with a declared step, acceleration limits, braking capability, and footprint. Collision checking must account for swept motion rather than endpoints alone. Localization may be ideal in the initial engineering stage, but the human-study configuration must declare whether pose noise is present. Occupancy states are free, occupied, or unknown; how unknown space constrains motion is a frozen policy. \todo{Specify units, timestep, collision model, map resolution, sensor update rate, and deterministic random-seed behavior.}
+\section{Operator interface and attention state}
+The station presents fleet pose, mission state, health, telemetry age, and open assistance requests. Selecting a rover opens a detailed view and, where authorized, direct velocity control. The interface distinguishes acknowledgement from resolution; clicking an alert cannot silently restart motion. A watchdog blocks stale commands. The independent safety stop is available at all levels. Attention onset is recorded at the rover before transmission so delay is not measured from a late station arrival.
+\figplaceholder{Terra perception/map/planner/control loop and separate ARGOS fleet view/attention/control loop, with clocks and authority boundary.}{Proposed ARGOS architecture}
+\section{Implementation status and validation}
+\begin{table}[htbp]\centering\begin{tabular}{p{.40\linewidth}p{.44\linewidth}}\toprule
+Component & Status and acceptance evidence \\\midrule
+Simulator and event replay & \pending \\
+L0--L3 controllers & \pending \\
+Fleet interface and queue & \pending \\
+Command expiry and safety layer & \pending \\
+Sensor adapters and field I/O & \pending \\\bottomrule\end{tabular}\caption{Implementation inventory to be completed from actual software and tests.}\end{table}
+\chapter{Autonomy and Sufficient Supervision}
+\begin{table}[htbp]\centering\small
+\begin{tabular}{p{.09\linewidth}p{.37\linewidth}p{.43\linewidth}}\toprule
+Level & Terra responsibility & Human responsibility \\\midrule
+L0 & Report state; execute selected rover's velocity commands. & Drive translation and rotation; unattended rovers remain stopped. \\
+L1 & Follow assigned waypoints; no task-level obstacle response. & Detect obstacles and steer or change waypoints. \\
+L2 & Follow waypoints; detect hazards, stop, and request assistance. & Resolve blockage, authorize recovery, and resume. \\
+L3 & Follow waypoints and avoid local obstacles; stop and ask on unresolved failure. & Resolve dead ends, ambiguous perception, and persistent planner failure. \\\bottomrule
+\end{tabular}\caption{Operational ARGOS autonomy levels. L4 mission planning and L5 fleet coordination are future work, outside the confirmatory comparison.}\end{table}
+All levels retain the same independent emergency stop and command-expiry watchdog. These protections do not count as successful mission completion. L1 deliberately lacks task-level obstacle handling, but its unsafe trajectory is evaluated in simulation; physical L1 operation requires an independent protective stop. A protective stop is logged as a failure/intervention rather than silently converting L1 into L2. Only one rover receives direct operator control at a time; other rovers follow their level's unattended behavior.
+\section{Defining minimum sufficient autonomy}
+Let $S(a,n)$ be goal-completion probability, $C(a,n)$ an unsafe-event rate, $W(a,n)$ operator workload, and $R(a,n)$ attention-response delay under the declared scenario distribution. The study estimates a task-dependent minimum rather than a universal autonomy level:
+\[
+\begin{aligned}
+a^*(n)=\min\{a\in\{L0,L1,L2,L3\}:\;&S(a,n)\geq s_0,\ C(a,n)\leq c_0,\\
+&W(a,n)\leq w_0,\ R(a,n)\leq r_0\}.
+\end{aligned}
+\]
+Thresholds $s_0,c_0,w_0,r_0$ and confidence level are \textbf{TODO: to be justified and frozen before collection}. Use conservative one-sided interval bounds, with multiplicity handled for the joint decision; an estimated mean alone does not establish sufficiency. If no tested level meets all criteria, report ``none demonstrated.'' If uncertainty crosses a threshold, report ``inconclusive.'' A zero-event sample does not establish zero risk. Do not assume performance is monotone in autonomy. Report $a^*(n)$ separately by scenario family and workload definition where justified.
+
+The maximum demonstrated fleet size at a level is the largest \emph{tested} $n$ meeting the same criteria. Do not extrapolate beyond tested sizes or conflate statistical non-significance with equivalence. A pilot may motivate thresholds, but confirmatory thresholds must be fixed before analyzing the main study.
+
+\section{Capability checks}
+Validate L0 direct command response; L1 open-route arrival and blocked-route behavior; L2 hazard detection, stop, unique request, and human-authorized resumption; and L3 local avoidance plus safe fallback for unresolved situations. Use the same low-level dynamics and task definitions across levels. L2 and L3 fallback thresholds must be explicit. Log protective-stop triggers separately so an independent safety layer does not mask weak task autonomy. \todo{Define blocked duration, detection range, stop clearance, planner-stall window, and human recovery actions.}
+\chapter{Methods and Experimental Design}
+\section{Simulation-first stages}
+Stage A establishes deterministic two-dimensional differential-drive simulation, unit conventions, event replay, and controller equivalence. Stage B runs automated sweeps without humans to check failure handling and scenario difficulty. Stage C pilots the operator interface and trial duration. Stage D executes the preregistered human study after required ethics review. Stage E performs bounded physical validation only after simulation checks. Stage E is optional for the minimum thesis claim; a simulation result alone must be labeled as such.
+
+A proposed fleet-size set is $N\in\{1,2,4,8,16\}$ and the autonomy set is $A\in\{L0,L1,L2,L3\}$. These are design candidates, not a requirement that each participant complete all twenty cells. Pilot L0 at small fleet sizes to avoid ceiling/floor effects. Use a balanced incomplete-block design if the full factorial causes fatigue; allocate cells so the prespecified interaction remains estimable. Retain automated sweeps at all fleet sizes even if human trials use a subset. \todo{Freeze the final cells, participant allocation, trial duration, training criterion, and scenario difficulty after the pilot and before confirmatory recruitment.}
+
+Scenarios include an open route, isolated static obstacles, narrow passages, local dead ends, intermittent sensor uncertainty, and clustered simultaneous attention requests. Separate fixed missions from fleet-size scaling: one comparison fixes per-rover task demand, while a secondary comparison fixes total fleet demand. Reuse scenario seeds across comparable conditions and randomize presentation order. Keep speed limits, goal tolerances, footprint, localization quality, safety layer, interface layout, and communication policy fixed in the main autonomy experiment. L3 treats other rovers as dynamic obstacles only if that capability has been implemented and separately validated; otherwise use disjoint routes to avoid hidden coordination effects.
+
+\section{Participants and controls}
+Recruitment population, prior robotics experience, accessibility needs, compensation, and eligibility are \textbf{TODO}. Training uses practice scenarios excluded from analysis. Counterbalance autonomy order and scenario order using a Latin-square or blocked randomization; record fatigue, experience, and practice effects. One participant controls one fleet in each trial. Obtain informed consent and required institutional review before recruitment. A pilot estimates variability and feasibility, not confirmatory effects. Choose sample size through simulation-based power/precision analysis for the primary endpoint and autonomy-by-fleet interaction, with a prespecified smallest effect of interest. \todo{Specify participant count, attrition allowance, exclusions, and stopping rule. Do not equate robot-trial count with independent participant count.}
+
+\section{Events and outcome definitions}
+A trial begins at mission release and ends at the fixed deadline, all-goals completion, or a defined termination. Mission success is the fraction of assigned goals reached safely by the deadline. Record collision/contact and independent protective stops separately; normalize collision incidence by rover distance and operating time, with denominators reported. An intervention is a distinct operator control episode or explicit recovery instruction; merge repeated clicks under a preregistered episode rule. Report interventions per rover-minute and total operator active time. Response delay is onset-to-acknowledgement; resolution delay is onset-to-resolution. Pending events at termination are censored, not discarded. Report timeouts and lost events explicitly. Log attention switches, queue length, starvation, command/telemetry age, planner failures, minimum clearance, and path efficiency.
+
+Collect all six NASA-TLX subscales after each trial \citep{hart1988tlx}. The proposed primary workload score is the unweighted mean (Raw TLX); keep subscales and orient the performance item so larger scores consistently mean more workload. Raw TLX is not interchangeable with the pairwise-weighted original score. \todo{Freeze questionnaire wording, anchors, timing, and aggregation.}
+
+\section{Analysis and inference}
+Use a mixed-effects model appropriate to each endpoint: binomial goal completion with participant and scenario effects; count models with exposure offsets for interventions; a prespecified continuous/ordinal model for workload; and survival or restricted-mean-time analysis for censored attention delays. Include categorical autonomy, fleet size, their interaction, and trial order. Check overdispersion and model fit. Report estimated contrasts, confidence intervals, and practical magnitudes, not only $p$-values. Cluster resampling at participant level preserves repeated-measures dependence; account for shared scenarios. Prespecify primary contrasts and adjust multiple confirmatory comparisons; label all exploratory analyses. Handle technical failures with declared categories and sensitivity analyses rather than deleting unfavorable trials.
+
+\section{Factor table and feasibility}
+\begin{table}[htbp]\centering\begin{tabular}{p{.28\linewidth}p{.58\linewidth}}\toprule
+Factor & Proposed design, to be frozen \\\midrule
+Autonomy & L0, L1, L2, L3 \\
+Fleet size & 1, 2, 4, 8, 16; pilot-selected human subset \\
+Scenario & Open, obstacle, passage, dead end, uncertainty, event burst \\
+Communication & One fixed policy for confirmatory autonomy comparison \\
+Attention order & One fixed policy; scheduling study is separate \\
+Depth/localization & Fixed simulator source and declared noise model \\
+Participants/trials & TODO: precision/power analysis and allocation \\\bottomrule\end{tabular}\caption{Candidate experiment factors; these are not executed conditions.}\end{table}
+\section{Missingness, censoring, and integrity}
+A communication failure can be a study outcome or a technical invalidation depending on the frozen protocol. Define the distinction before collection. Report missing questionnaire items, partial trials, aborted sessions, unserved requests, and hardware interventions. Do not impute perfect success for missing rover logs or set censored delays to zero. Keep an immutable raw-event archive and derive all aggregates from a versioned analysis pipeline. Record deviations and include sensitivity analyses for ambiguous failure classifications. Do not use confirmatory test data to tune controller, policy weights, or threshold values.
+\chapter{Results: All Data Pending}
+No experiments have been reported in this source bundle. All tables and planned plots are placeholders. This chapter must remain explicitly incomplete until genuine logs and participant measurements are available.
+\section{Participants, trials, and quality checks}
+\todo{Insert recruited/analyzed/excluded participants and trial flow, final factor allocation, training performance, missing data, protocol deviations, synchronization checks, and implementation version.}
+\section{Autonomy-by-fleet outcomes}
+\begin{longtable}{p{.15\linewidth}p{.13\linewidth}p{.25\linewidth}p{.28\linewidth}}\toprule
+Level & Fleet size & Completion and safety & Workload and interventions \\\midrule
+L0 & TODO & \pending & \pending \\
+L1 & TODO & \pending & \pending \\
+L2 & TODO & \pending & \pending \\
+L3 & TODO & \pending & \pending \\\bottomrule\caption{Empty core results table. Add one row per tested cell, units, denominators, and intervals.}\\
+\end{longtable}
+\figplaceholder{Goal-completion estimates versus fleet size by autonomy, with participant-aware intervals and success criterion.}{Planned mission-performance plot}
+\figplaceholder{Raw TLX and interventions per rover-minute versus fleet size; display repeated-measures variability.}{Planned workload and intervention plot}
+\section{Attention tails and safety}
+\todo{Report delay distributions including censored requests, deadline misses, unresolved events, collision/protective-stop counts, exposure, and uncertainty. Separate average improvements from critical tail behavior.}
+\section{Minimum-autonomy decision}
+\begin{table}[htbp]\centering\begin{tabular}{p{.18\linewidth}p{.34\linewidth}p{.34\linewidth}}\toprule
+Tested fleet size & Joint criterion decision & Lowest demonstrated level \\\midrule
+TODO & TODO: intervals and thresholds & TODO: not established \\\bottomrule\end{tabular}\caption{Decision scaffold. Permitted outcomes include supported, inconclusive, or none demonstrated.}\end{table}
+\todo{Apply the frozen joint decision rule. Include scenario-specific sensitivity and uncertainty; do not choose thresholds retrospectively to yield a preferred level.}
+\chapter{Discussion and Limitations}
+\section{Interpreting possible findings}
+If L3 lowers intervention demand but not workload, monitoring and switching may remain the limiting mechanisms. If L2 reduces unsafe events but leaves request delays above criterion, stop-and-ask is protective but insufficient in that tested envelope. If L1 performs adequately in open routes, that conclusion applies to those routes rather than obstacle-rich missions. If no tested level qualifies, the thesis should identify which criterion failed and whether uncertainty or poor outcomes prevented sufficiency.
+
+\todo{Replace conditional interpretations with evidence-linked discussion after analysis. Each claim must refer to an observed estimate and its uncertainty. Include findings contrary to the hypotheses.}
+\section{Internal and external validity}
+The autonomy manipulation changes several capabilities, so it estimates level effects rather than an isolated mechanism. Scenario reuse can induce learning; incomplete allocation can reduce interaction precision. Volunteer training, fixed mission definitions, subjective scale interpretation, interface design, queue policy, and communication conditions constrain generalization. Simulation may overestimate perception and control reliability, omit correlated faults, and reduce consequences perceived by operators. A simulation-only thesis must say it demonstrates behavior in simulation. Finite zero-collision trials cannot certify safety. Fleet capacity is conditional on task load, not an intrinsic number attached to one autonomy level.
+\section{Research integrity and negative findings}
+A negative result is not justification to discard difficult trials, relabel autonomy, or change workload thresholds after viewing outcomes. Report preregistration changes and all failed criteria. No paper in this bundle supplies evidence for another merely by being drafted; each requires its own data and distinct contribution. Reusing platform descriptions should be disclosed and adapted, while repeated empirical data must be labeled as reused.
+\chapter{Supporting Research and Future Work}
+\section{Architecture paper}
+The architecture direction evaluates contracts, timing, and outage behavior using matched local/central implementations. It can document the platform before the human study, but publication depends on a contribution beyond integration. See paper 01.
+\section{Attention-driven communication}
+Paper 03 compares continuous, periodic, and selective detail. Its primary manipulation is communication, with autonomy held fixed. It should establish bandwidth savings together with preserved mission/attention performance under declared margins, rather than reporting traffic reduction alone.
+\section{Depth-source comparison}
+Paper 04 compares monocular depth with phone LiDAR through a common navigation pipeline, with independent reference measurements and scene-level splits. It is optional for the core thesis; changing depth sources inside the autonomy study would confound the level comparison.
+\section{Attention prioritization}
+Paper 05 compares queue policies under fixed autonomy, including fairness and critical-event tails. It follows instrumentation and the main study because realistic event/service traces improve replay design. Queue scheduling is not L5 cooperative autonomy.
+\section{Simulation-to-field validation}
+Paper 06 freezes the stack and evaluates bounded physical transfer. Physical rover count and environment must be reported independently of simulation's scale. It can strengthen external validity without becoming a prerequisite for a clearly scoped simulation thesis.
+\section{L4 and L5}
+L4 would add mission-level planning/replanning and recovery. L5 would add coordination and allocation among rovers. Both would require new operational definitions, baselines, and studies; neither is measured by the proposed L0--L3 experiment.
+\chapter{Conclusion Draft}
+This thesis proposes an uncertainty-aware test of minimum autonomy for one-human multi-Terra supervision. ARGOS supplies the platform boundary, and the simulation-first study is designed to separate mission performance from safety and human attention burden. \todo{Replace this paragraph with the actual supported contributions, estimates, minimum-autonomy envelope, and residual uncertainty after collection. Do not state that L3 or any fleet size is sufficient until the frozen criteria are met.}
+\section{Reproducibility, ethics, and declarations}
+\textbf{Data availability.} \todo{Publish de-identified event logs, scenario seeds, simulator/configuration versions, analysis scripts, data dictionary, and permitted sensor recordings; list restrictions and repository/archive identifiers. No dataset exists in this bundle.}
+\textbf{Ethics.} \todo{Record institutional review status, consent procedure, privacy retention schedule, and physical trial safety protocol. No approval is asserted.}
+\textbf{Author contributions.} \todo{Assign CRediT roles with co-author agreement: conceptualization, methodology, software, investigation, formal analysis, data curation, visualization, and writing.}
+\textbf{Funding and competing interests.} \todo{Supply verified funding, support, and competing-interest statements; do not assume none.}
+\textbf{AI assistance.} This initial source draft was generated with AI assistance. \todo{Authors must verify technical claims, citations, analyses, and the disclosure requirements of their institution and selected venue before submission.}
+
+\appendix
+\chapter{Event Log and Data Dictionary}
+\begin{longtable}{p{.30\linewidth}p{.55\linewidth}}\toprule
+Field/event & Meaning and units \\\midrule
+run/participant/scenario IDs & Pseudonymous IDs; keep identity key separately \\
+rover ID / seed / version & Rover identity, reproducible seed, configuration digest \\
+source and station time & Monotonic acquisition/receipt clocks; record offset uncertainty \\
+pose / velocity / autonomy & Meters, radians, meters/second, radians/second, L0--L3 \\
+request onset / ack / resolve & Unique event ID and reason; separate all lifecycle times \\
+command issued / received & ID, authority, expiry, acknowledged/executed outcome \\
+goal / collision / safety stop & Timestamped outcome and source of detection \\
+operator control episode & Begin/end, selected rover, action category \\
+telemetry/detail bytes & Link/application byte distinction, payload type, freshness \\
+questionnaire / trial end & Six subscales, missingness, end reason, deadline \\\bottomrule\caption{Proposed log schema; finalize before collecting study data.}\\
+\end{longtable}
+\chapter{Execution Gates and Research Plan}
+Gate 1: validate deterministic simulation and L0--L3 behavior with replayable fault cases. Gate 2: verify clock alignment, exposure metrics, and raw-to-summary calculations. Gate 3: pilot the operator protocol and freeze factors, thresholds, sample size, exclusions, and analysis. Gate 4: obtain required ethics approval and collect confirmatory data. Gate 5: run declared analysis, review negative and missing outcomes, and revise claims. Optional Gate 6: freeze a field configuration and collect held-out physical validation.
+
+With a lead researcher and two collaborators, a proposed responsibility split is: lead owns research design, navigation assumptions, analyses, and thesis; collaborator A owns simulation scenarios and verified logging; collaborator B owns communications and operator interface. These are suggested responsibilities, not assigned authorship. \todo{Add actual owners, dependencies, dates, and institution's defense/submission milestones after feasibility review. The defense date must not be inferred from the conversation.}
+\chapter{Literature and Figure Completion Checklist}
+\todo{Complete closest-work comparison; verify all bibliography metadata and venue policy; add neglect-tolerance and multi-robot supervision sources; collect actual diagrams/screenshots only from implemented software; replace figure placeholders with measured plots without simulated ``results'' being presented as participant data.}
+\bibliographystyle{plainnat}\bibliography{references}
+\end{document}
