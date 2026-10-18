@@ -1,3 +1,5 @@
+> Historical implementation plan and execution record (2026-10-08). Preserve its original evidence and limitations; unchecked tasks are not a live backlog. See [current platform summary](../../ARGOS_CURRENT_SUMMARY.md) and platform repositories for subsequent work.
+
 # L4 Target Search Implementation Plan
 
 > **For agentic workers:** Use superpowers:executing-plans to implement this plan task by task after implementation is requested. Steps use checkboxes for tracking.

@@ -10,7 +10,7 @@ Drafts and the thesis outline stay under `papers/` and `thesis/`. The running ro
 | --- | --- |
 | [`papers/`](papers/) | One folder per paper: LaTeX drafts and tracked PDFs |
 | [`thesis/`](thesis/) | Thesis outline and the three-paper research questions |
-| [`src/`](src/) | Phone app, planners, and drivers (placeholder; no code yet) |
+| [`src/`](src/) | Thesis-local scripts (placeholder; platform code lives in Terra / ARGOS / Zorvane) |
 | [`hardware/`](hardware/) | Chassis, mounts, CAD, and hardware notes |
 | [`experiments/`](experiments/) | Logs, run configs, and evaluation scripts |
 | [`docs/`](docs/) | Short architecture notes; current ARGOS / Terra summary: [`docs/ARGOS_CURRENT_SUMMARY.md`](docs/ARGOS_CURRENT_SUMMARY.md) |
@@ -36,7 +36,7 @@ Platform code goes in Terra or ARGOS, not in this repository. Thesis-local scrip
 
 ## Platforms
 
-Writing stays in this repository. Rover code is [Terra](https://github.com/Super-Yojan/Terra) (local autonomy, phone-as-brain). The operator layer is [ARGOS](https://github.com/Super-Yojan/ARGOS) (missions and waypoints, attention scheduling). The split, the temporary `cmd_vel` debug path, and the go-to-waypoint contract are in [`docs/ARGOS_CURRENT_SUMMARY.md`](docs/ARGOS_CURRENT_SUMMARY.md).
+Writing stays in this repository. Rover code is [Terra](https://github.com/Super-Yojan/Terra) (local autonomy, phone-as-brain). The operator layer is [ARGOS](https://github.com/Super-Yojan/ARGOS) (missions and waypoints, attention scheduling). The simulator is [Zorvane](https://github.com/Super-Yojan/Zorvane). ARGOS uses a React browser interface and Rust Axum server; TerraPhone remains the iOS vehicle runtime. Current ownership, implemented waypoint controls, and research boundaries are in [`docs/ARGOS_CURRENT_SUMMARY.md`](docs/ARGOS_CURRENT_SUMMARY.md).
 
 ## Status
 
