@@ -1,0 +1,198 @@
+% Chapter 1: Background and related work. First draft.
+% Follows the "Related Work" section of thesis_outline.tex, widened to the
+% one-operator, many-robots framing of the Oct 23, 2026 ARGOS deck.
+% Citation keys marked "verify" in references.bib were added from general knowledge
+% of the field and must be checked against the publisher before submission.
+
+\chapter{Background and Related Work}
+\label{ch:background}
+
+This chapter places the thesis in five bodies of work: robots in real disaster response, levels of autonomy, supervisory control of multiple robots, operator interfaces for fleets, and low-cost onboard navigation.
+It closes with the gaps that motivate the platform and study in later chapters.
+
+\section{Robots in disaster response}
+\label{sec:bg-disaster}
+
+Rescue robotics has a field record that is unusual in robotics: robots have been deployed at real incidents, and the deployments have been documented.
+Murphy's account of the field gives the broad picture \citep{murphy2014disaster}; this section concentrates on four missions whose lessons recur throughout the thesis.
+
+\subsection{World Trade Center, 2001}
+
+The response at the World Trade Center was the first major use of robots for urban search and rescue.
+All of the robots used were teleoperated.
+The only robot lost and not recovered was wireless: it lost its control link, and with no onboard intelligence it could not move to reacquire the signal~\citep{murphy2004rescue}.
+The lesson for this thesis is that autonomy has to live on the robot as well as in the link.
+A robot whose only behavior is to wait for commands fails as soon as the commands stop.
+
+\subsection{Fukushima Daiichi, 2011}
+
+After the Fukushima Daiichi accident, the Quince robot was sent into the reactor buildings.
+Thick concrete walls were expected to block radio, so Quince used a cable link (VDSL) instead of wireless communication~\citep{nagatani2011fukushima}.
+The robot's developers could not operate it on site themselves, so its teleoperation had to be easy for first responders to learn~\citep{nagatani2011fukushima}.
+\todo{Add page or section numbers for both claims.}
+Two lessons follow.
+Communication cannot be assumed, and in some environments the choice is between a tether and a robot that can act alone.
+The operator is often not the expert who built the robot, so the interface has to be simple.
+
+\subsection{DARPA Subterranean Challenge, 2021}
+
+The DARPA Subterranean Challenge (SubT) asked teams to explore, map, and search underground tunnels, urban structures, and caves with robot teams.
+Its final event took place in September 2021 in the Louisville Mega Cavern~\citep{darpa2021subt}.
+SubT is the closest existing evidence for one-operator fleet supervision under field conditions: each team had a single Human Supervisor, who was the only person allowed to interact with the robots during a run~\citep{ackerman2021subtoperators}.
+One operator, Chao Cao, managed eleven robots~\citep{ackerman2021subtoperators}.
+
+Operator interviews after the final show both that this worked and where it strained~\citep{ackerman2021subtoperators}.
+Operators were still the bottleneck: they confirmed artifact reports, retasked robots, and got stuck robots free.
+Team CoSTAR reported that low-level commands were ``too difficult for the operator,'' so over the years of the program the team moved them onto the robots.
+Operator Marco Tranzatto asked for ``a more centralized way to give commands to the robots.''
+Operator Martin Dlouh\'y observed that ``it's obvious to a human when the robot is not doing well,'' which argues for keeping a fast human takeover.
+IEEE Spectrum also noted that relying on a skilled, practiced operator suits a competition team but could be impractical for robots deployed operationally~\citep{ackerman2021subtoperators}.
+
+SubT therefore leaves open the question this thesis studies.
+Teams arrived at their autonomy levels through years of iteration, not through a measured account of how much autonomy a mission needs and when the human should step in.
+\todo{Add SubT team system papers (for example CERBERUS, CoSTAR, CSIRO Data61) for their autonomy and communication architectures.}
+
+\subsection{Champlain Towers South, Surfside, 2021}
+
+After the Champlain Towers South collapse in June 2021, drones flew 304 missions for strategic operations alone~\citep{murphy2021surfside}.
+The drone teams coordinated through a WhatsApp group chat, and mobile apps on the rubble pile showed GPS errors as large as ten meters~\citep{murphy2021surfside}.
+The robots themselves worked; what was missing was a shared operational picture of where each vehicle was, how well it was localized, and who was tasking it.
+
+\subsection{Recurring lessons}
+
+Table~\ref{tab:bg-lessons} summarizes the failures in these missions and the design response this thesis takes to each.
+The right-hand column states a design intent, not a claim that ARGOS would have solved these missions.
+
+\begin{table}[ht]
+\centering
+\caption{Failures in documented robot deployments and the corresponding design intent in this thesis.}
+\label{tab:bg-lessons}
+\small
+\begin{tabularx}{\textwidth}{@{}l X X@{}}
+\toprule
+Mission & What went wrong & Design intent in this thesis \\
+\midrule
+WTC 2001 & Wireless robot lost its link; no onboard autonomy to recover. & Put autonomy on the robot (L1--L3), not only on the link. \\
+Fukushima 2011 & Concrete blocked radio; teleoperation had to be easy for responders. & One simple operator application, with L0 manual through L3 waypoint one click apart. \\
+SubT 2021 & One supervisor ran eleven robots but remained the bottleneck; autonomy set by trial and error. & Measure how much autonomy a mission needs and when the human should step in; switch levels in one click. \\
+Surfside 2021 & 304 missions coordinated by group chat; phone GPS errors up to 10\,m. & One shared fleet map with each robot, its GPS fix, and its reported accuracy. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Levels of autonomy}
+\label{sec:bg-levels}
+
+Describing how work is split between a human and an automated system by discrete levels has a long history.
+Sheridan and Verplank proposed a ten-level scale running from a human doing everything to a computer acting entirely on its own~\citep{sheridan1978verplank}.
+Parasuraman, Sheridan, and Wickens refined this by noting that automation can be applied at different levels to each of four stages: information acquisition, information analysis, decision selection, and action implementation~\citep{parasuraman2000levels}.
+Beer, Fisk, and Rogers adapted these ideas to robotics and to the sense--plan--act structure of a robot, and argued that the appropriate level depends on the task and the environment~\citep{beer2014lora}.
+For road vehicles, SAE J3016 defines six levels of driving automation~\citep{sae2021j3016}.
+
+The ladder in Table~\ref{tab:intro-levels} differs from these in two ways.
+First, it is defined by mission behaviors on one platform (teleoperate, assist, follow waypoints, avoid, search, decide), so that each level is a selectable runtime mode that can be held fixed for an experimental condition.
+Second, its upper levels move from a single vehicle's behavior to fleet-level decisions, which general automation scales do not address.
+\todo{Compare with ALFUS (Autonomy Levels for Unmanned Systems, NIST) and cite it once the source is confirmed.}
+
+A fixed level is also not the only option.
+Work on adjustable, sliding, or mixed-initiative autonomy lets the level change during a mission, by the human or by the system \citep{goodrich2001adjustable}.
+\todo{Add a survey of adjustable / sliding autonomy and mixed-initiative control.}
+The free-switching condition of the planned study belongs to this line of work: it treats the operator's choice of level as data.
+
+\section{Supervising multiple robots}
+\label{sec:bg-supervision}
+
+\subsection{Neglect tolerance and fan-out}
+
+Supervisory control describes a human who sets goals and monitors an automated system rather than controlling it continuously~\citep{sheridan1992telerobotics}.
+For robot teams, Olsen and colleagues gave this a quantitative form.
+\emph{Neglect time} is how long a robot can be left alone before its performance drops below an acceptable level, and \emph{interaction time} is how long the human needs to service it~\citep{olsen2003metrics}.
+\emph{Fan-out} is the number of robots one person can effectively operate at once, estimated from those two quantities~\citep{olsen2004fanout}.
+Crandall and colleagues tested such interaction schemes in multitasking environments~\citep{crandall2005validating}, and Crandall and Cummings examined which metrics predict supervisory performance with multiple robots~\citep{crandall2007predictive}.
+Cummings and Mitchell modeled operator capacity for supervising multiple unmanned aerial vehicles and included the time robots spend waiting for the operator~\citep{cummings2008capacity}.
+
+This literature frames the thesis question directly.
+Raising the autonomy level should lengthen neglect time and shorten interaction time, which raises fan-out.
+What it does not settle is how that relationship looks on a real low-cost platform under communication loss and clutter, and whether operators, when free to choose, pick the level that the model would predict.
+
+\subsection{Attention, workload, and situation awareness}
+
+When several robots need help at once, the operator must decide whom to serve first.
+Each robot that waits accumulates wait time, and the operator must also switch context between robots.
+Chen and Barnes review human factors issues in multirobot control, including operator workload, situation awareness, trust, and the effect of automation on both~\citep{chen2014teaming}.
+Situation awareness, in Endsley's definition, covers perceiving the elements of the environment, understanding them, and projecting their future state~\citep{endsley1995sa}.
+Workload is commonly measured with the NASA Task Load Index (NASA-TLX)~\citep{hart1988tlx}, the instrument currently proposed for this thesis.
+\todo{Add work on attention allocation and scheduling of operator attention across robots (for example queuing models of operator service).}
+\todo{Add work on interruptions and task switching cost in multi-robot supervision.}
+
+\section{Operator interfaces for robot fleets}
+\label{sec:bg-interfaces}
+
+The deployments above show what operators ask for: one centralized map from which to command robots~\citep{ackerman2021subtoperators}, and a single shared picture in place of chat-based coordination~\citep{murphy2021surfside}.
+Interfaces for multi-robot supervision commonly combine a map-centric overview with on-demand detail for a selected robot.
+Mixed-reality and immersive command interfaces extend this; Milgram and Kishino's reality--virtuality continuum is the standard way to classify them~\citep{milgram1994continuum}.
+\todo{Replace the placeholder survey of AR/VR command interfaces for multi-robot supervision (\texttt{chen2018survey} in thesis\_outline.tex) with a confirmed source.}
+\todo{Add examples of fleet supervision interfaces from SubT teams and from multi-UAV ground control stations.}
+
+\section{Communication constraints}
+\label{sec:bg-comms}
+
+Every deployment in Section~\ref{sec:bg-disaster} met a communication limit: a lost wireless link at WTC, radio blocked by concrete at Fukushima, and underground radio limits throughout SubT.
+Two design responses follow.
+The first is onboard autonomy that keeps the robot safe and useful when the link drops.
+The second is a telemetry design that sends low-bandwidth state continuously (pose, mission state, health, autonomy level, and whether the robot needs help) and sends high-bandwidth data such as video, point clouds, and maps only when the operator asks for it.
+\todo{Cite communication-aware autonomy and multi-robot networking work, including SubT communication architectures (mesh radios, deployable relay nodes).}
+\todo{Cite work on bandwidth scaling of telemetry with fleet size.}
+
+\section{Low-cost onboard navigation}
+\label{sec:bg-navigation}
+
+\subsection{Local planning}
+
+Local obstacle avoidance for differential-drive robots is well established.
+The dynamic window approach searches the velocities a robot can reach within one control cycle, discards those that lead to collision, and scores the rest on heading toward the goal, clearance, and forward speed~\citep{fox1997dwa}.
+Because it replans every cycle, a sequence of obstacles updates the trajectory without a single precomputed path.
+\todo{Add other local planners used for comparison (for example timed elastic bands, vector field histogram), if the methods chapter uses them.}
+
+\subsection{Phones as robot computers}
+
+Phones have been used in robotics as teleoperation clients, communication links, and extra cameras.
+\todo{Cite prior smartphone-based robots and phone-as-controller platforms.}
+Using the phone as the vehicle's only onboard computer depends on how well it estimates its own motion.
+Visual--inertial odometry (VIO) fuses camera and IMU data for pose; Delmerico and Scaramuzza benchmarked monocular VIO algorithms on flying-robot hardware~\citep{delmerico2018benchmark}.
+\todo{Add the phone VIO references from the literature review (Kim 2022; Marino 2022) with full details.}
+On iOS, ARKit provides camera pose and, on supported devices, depth.
+On Android, ARCore provides motion tracking that combines visual feature points with the IMU, and depth maps from the main RGB camera on supported devices~\citep{arcore2026fundamentals}.
+A single Rust library can serve both platforms through UniFFI, which generates Swift and Kotlin bindings~\citep{uniffi2026}.
+
+\section{Multi-robot coordination}
+\label{sec:bg-coordination}
+
+At the upper end of the autonomy ladder, robots coordinate among themselves.
+ALLIANCE is a behavior-based architecture for fault-tolerant cooperation, in which robots take over tasks that teammates fail to complete~\citep{parker1998alliance}.
+Market-based approaches allocate tasks through auctions and bids among robots~\citep{dias2006market}.
+Collaborative mapping across several robots is the subject of Paper~2 of this thesis.
+\todo{Add collaborative / multi-robot SLAM references for Paper 2.}
+
+\section{Gaps addressed by this thesis}
+\label{sec:bg-gaps}
+
+The work reviewed above leaves four gaps that this thesis targets.
+
+\begin{enumerate}
+\item \textbf{Measured autonomy requirements.}
+  Field teams, including at SubT, chose autonomy levels through iteration.
+  Fan-out models predict the effect of autonomy on supervision, but there is little measurement of the minimum level real missions need, or of when operators choose to step in when they may switch freely.
+  \todo{Confirm this claim against the literature before submission.}
+\item \textbf{Cost and deployability.}
+  Platforms with dedicated onboard computers are expensive to field in numbers.
+  A phone-as-brain rover tests whether commodity hardware can carry L0--L3 autonomy.
+\item \textbf{An integrated system.}
+  Onboard avoidance, an onboard authority arbiter, and the operator interface are usually studied separately.
+  This thesis builds them as one system, so that a change of level in the interface maps directly to a change of behavior on the robot, in simulation and on hardware.
+\item \textbf{A simple shared operator picture.}
+  Field operators asked for one centralized map and simple controls.
+  ARGOS provides a single fleet map with one-click autonomy switching and takeover, designed for operators who are not the robot's developers.
+\end{enumerate}
+
+The next chapter describes the platform that supports this study.
