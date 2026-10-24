@@ -1,0 +1,33 @@
+% Working thesis draft: introduction and Chapter 1 only.
+% Starting draft for editing - not a final thesis document.
+% Preamble follows thesis_outline.tex; report class so chapters number.
+% TODO: switch to the university's thesis class once it is chosen.
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage[numbers]{natbib}
+
+% Visible marker for missing references, data, and decisions.
+\newcommand{\todo}[1]{\textbf{[TODO: #1]}}
+
+\onehalfspacing
+\title{Cheap Multi-Robot Autonomous Fleets for Disaster Recovery:\\
+Phone-as-Brain Rovers with Depth Sensing, Obstacle Avoidance, and Fleet Command Interfaces}
+\author{Yojan Gautam}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\include{chapters/introduction}
+\include{chapters/ch1_background}
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}

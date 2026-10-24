@@ -19,6 +19,7 @@ Drafts and the thesis outline stay under `papers/` and `thesis/`. The running ro
 ## Writing
 
 - [`thesis/thesis_outline.tex`](thesis/thesis_outline.tex) — working LaTeX outline; compiled export is [`thesis/thesis_outline.pdf`](thesis/thesis_outline.pdf)
+- [`thesis/thesis_draft.tex`](thesis/thesis_draft.tex) — thesis draft: introduction and Chapter 1 (background and related work), chapters under `thesis/chapters/`, bibliography in `thesis/references.bib`; compiled export is [`thesis/thesis_draft.pdf`](thesis/thesis_draft.pdf)
 - [`thesis/papers_research_questions.md`](thesis/papers_research_questions.md) — research questions and evaluation metrics for the three-paper spine
 - [`papers/paper1-phone-as-brain/`](papers/paper1-phone-as-brain/) — Paper 1 draft (introduction and problem formulation), with `introduction.pdf` and `problem_formulation.pdf`
 - [`papers/paper2-collaborative-slam/`](papers/paper2-collaborative-slam/) — Paper 2 placeholder

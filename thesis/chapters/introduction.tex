@@ -1,0 +1,169 @@
+% Introduction. First draft.
+% Sources: "Project ARGOS - One Operator Many Robots" deck (Oct 23, 2026),
+% thesis_outline.tex, papers_research_questions.md, docs/ARGOS_CURRENT_SUMMARY.md.
+% Status claims match the platform repositories as of Oct 23, 2026. No results are reported here.
+% Unnumbered so the following background chapter is Chapter 1.
+% TODO: if the department numbers the introduction as Chapter 1, drop the star and the addcontentsline.
+
+\chapter*{Introduction}
+\addcontentsline{toc}{chapter}{Introduction}
+\label{ch:introduction}
+
+\section*{Robots in real missions}
+
+Robots have been part of disaster response for more than two decades, and the same problems keep returning.
+At the World Trade Center in 2001, every robot on the pile was teleoperated.
+The one robot that was lost and not recovered was a wireless unit: it lost its control link and had no onboard intelligence to move and reacquire the signal~\citep{murphy2004rescue}.
+At Fukushima Daiichi in 2011, the concrete walls of the reactor buildings were expected to block radio, so the Quince robot was driven over a cable, and teleoperation had to be simple enough for first responders rather than the researchers who built it~\citep{nagatani2011fukushima}.
+At the DARPA Subterranean Challenge Final in 2021, each team was allowed a single Human Supervisor to interact with its robots, and one operator managed eleven robots in the Louisville Mega Cavern~\citep{darpa2021subt,ackerman2021subtoperators}.
+At the Champlain Towers South collapse in Surfside, Florida, the same year, drones flew 304 missions for mapping and strategic operations alone, and the drone teams coordinated through a WhatsApp group chat~\citep{murphy2021surfside}.
+
+Read together, these deployments show three recurring failures.
+Communication fails, and a robot that depends entirely on its link stops being useful the moment the link drops.
+One person ends up juggling several robots with no shared picture of where they are and what they need.
+The robots carry too little autonomy for the job, or an amount chosen by trial and error rather than by measurement.
+SubT showed that one-person supervision of a fleet is possible.
+It also showed its limits: the operator who ran eleven robots described them as ``quite a lot to be managed by a single human operator under a constrained time limit,'' and operators across teams were still the bottleneck for confirming finds, retasking robots, and freeing stuck ones~\citep{ackerman2021subtoperators}.
+
+\section*{One operator, many robots}
+
+This thesis studies the setting those missions point toward: one human operator supervising a fleet of ground robots.
+Three questions make that setting hard.
+
+\begin{enumerate}
+\item \textbf{Autonomy.} What is the minimum level of autonomy each robot needs to complete a mission, and when should the human step in?
+\item \textbf{Attention.} When several vehicles need the operator at the same time, how should the operator's attention be scheduled across them?
+\item \textbf{Bandwidth.} How much telemetry can each robot send as the fleet grows, and what should the operator see continuously versus on demand?
+\end{enumerate}
+
+These questions interact.
+More onboard autonomy means each robot asks for help less often and can survive a lost link, which frees operator attention and reduces the bandwidth each robot needs.
+More autonomy also costs development effort, compute on the vehicle, and operator trust, and a robot that is more autonomous than the mission needs is harder to understand when it misbehaves.
+The practical goal is the lowest level of autonomy that finishes the job and survives a lost link, with a human takeover always one action away.
+
+\section*{Levels of autonomy}
+
+To make the autonomy question measurable, this thesis uses a six-level ladder for a single ground vehicle (Table~\ref{tab:intro-levels}).
+Each level adds one responsibility to the robot and removes one from the human.
+
+\begin{table}[ht]
+\centering
+\caption{Autonomy levels used in this thesis. Runtime names are the values the ARGOS operator application publishes to Terra.}
+\label{tab:intro-levels}
+\begin{tabularx}{\textwidth}{@{}l l X l@{}}
+\toprule
+Level & Name & Robot does & Runtime name \\
+\midrule
+L0 & Full teleoperation & Nothing on its own; the human controls all motion. & \texttt{teleop} \\
+L1 & Assisted teleoperation & The human drives; the rover prevents collisions. & \texttt{assisted\_teleop} \\
+L2 & Waypoint, no avoidance & Drives from A to B along predefined waypoints. & \texttt{waypoint\_direct} \\
+L3 & Waypoint, with avoidance & Navigates from A to B and stops for or avoids obstacles. & \texttt{waypoint} \\
+L4 & Search & Searches an area autonomously and detects targets. & \texttt{target\_search} \\
+L5 & Decision making & Decides what is needed now and what is best for the fleet. & \todo{not defined} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The ladder is a working taxonomy for this platform, not a general standard.
+Chapter~\ref{ch:background} places it among existing level-of-autonomy frameworks.
+An earlier version of this project used a different ladder, with ``stop and ask'' as its own level; runtime names and research labels are not interchangeable, so every study condition records the exact software revision and behavior used.
+\todo{Decide whether \texttt{supervised} autonomy, which the operator application also offers, is a separate level or a mode across L3--L4.}
+
+\section*{The phone as the robot's brain}
+
+A fleet is only practical if each vehicle is cheap enough to field, lose, and replace, and simple enough to power, update, and send out again under time pressure.
+Robots that navigate in clutter usually carry a dedicated onboard computer cabled to a separate sensor suite.
+That computer makes perception and planning straightforward to host, but it is also a logistics item: bill-of-materials cost, a thermal and power design, spare parts, and a machine image to flash and maintain on every unit.
+
+A current consumer phone already holds what a small rover needs for local navigation: cameras, an inertial measurement unit, radios, a battery, and a processor able to run real-time vision, often with a depth-capable sensor.
+The premise of this thesis is to make that phone the vehicle's onboard brain.
+An operator installs an application, mounts the phone on a low-cost differential-drive chassis, and the phone senses, estimates its pose, plans, and commands the wheels.
+In the current prototype, a Raspberry Pi receives wheel commands from the phone over Bluetooth and drives the motors; the long-term plan replaces it with a low-cost microcontroller attached to the phone over USB.
+
+\section*{Research questions}
+
+The central question of the thesis is:
+
+\begin{quote}
+\textbf{RQ.} What minimum level of local autonomy allows one human operator to supervise an increasing number of robots effectively?
+\end{quote}
+
+Three sub-questions, each the subject of one paper, support it.
+
+\begin{description}
+\item[RQ1 (phone as brain).] Can a consumer phone run the sensing and control loop for a low-cost differential-drive rover well enough for waypoint navigation with local obstacle avoidance, without onboard industrial compute?
+\item[RQ2 (shared maps).] How well can several phone-mounted rovers build and fuse a shared map under limited bandwidth and noisy depth, compared with single-robot mapping?
+\item[RQ3 (supervision).] What operator interface and attention scheduling let one person supervise \(N\) rovers as onboard autonomy increases, and which vehicle should receive human attention first?
+\end{description}
+
+The primary experimental factors are fleet size \(N\) and autonomy level \(A\).
+
+\section*{Approach}
+
+The work is built as three systems that share one robotics core.
+
+\begin{itemize}
+\item \textbf{Terra} is the vehicle.
+  A shared Rust core holds state estimation, local occupancy mapping, planning, the control-authority arbiter, and velocity control.
+  The TerraPhone iOS application wraps that core, reads the camera, pose, depth, and IMU through ARKit and Core Motion, and sends wheel effort to the motor controller.
+  Terra keeps motion authority on the vehicle: it checks command freshness and arbitrates between teleoperation, assisted teleoperation, waypoint autonomy, and supervised autonomy.
+\item \textbf{ARGOS} (Adaptive Robotic Group Operator System) is the operator layer.
+  It is a native desktop application that shows the fleet on one map with each rover's GPS fix and accuracy, sends autonomy levels, goals, and held teleoperation, and keeps stop and L0 manual control one click away.
+  ARGOS sends intent; it does not stream low-level velocity as its normal command.
+\item \textbf{Zorvane} is the simulator.
+  It runs the same Terra algorithms, so a mission can be supervised in simulation and on real rovers through the same ARGOS interface.
+\end{itemize}
+
+ARGOS communicates with real rovers and with Zorvane over Zenoh, a publish--subscribe protocol \todo{cite Zenoh}.
+
+The planned study has operators supervise rovers through ARGOS in real-world missions and in Zorvane, on tasks such as finding a target object, scouting a route, or covering a sector before a deadline.
+Two conditions frame it.
+In the \emph{fixed} condition, one autonomy level is locked for the whole run, which gives a baseline per level.
+In the \emph{free} condition, the operator may switch levels at any time, and the system logs when, why, and in what context; the operator's choices are the core result.
+Conditions vary communication loss, the number of robots per operator, debris, deadlines, and unplanned events.
+Measures are mission success, completion time, operator workload, interventions, and time spent at each level.
+The design is an early proposal and will be made more rigorous before any human-subject study \todo{ethics / IRB approval, sample size, counterbalancing, workload instrument}.
+
+\section*{Current status}
+
+This section states what exists so that later chapters can separate implemented work from planned work.
+As of October 2026:
+
+\begin{itemize}
+\item L0--L3 run in simulation, and L3 has been demonstrated on the real rover.
+  L3 obstacle avoidance runs on the phone from live depth, with a local occupancy map and a voxel map, and has been demonstrated indoors against cables, chair legs, carts, and hallway walls \todo{report as a qualitative demonstration until measured trials exist}.
+\item The ARGOS desktop application provides a fleet map, autonomy selection, waypoint goals, teleoperation, emergency stop, and a first-person video panel, and is connected to Zorvane.
+\item L4 target search exists in Terra and has passed a deterministic simulator replay; physical detection and hardware validation are outstanding.
+\item The operator pilot study has not been run.
+  No human-subject results exist yet.
+\end{itemize}
+
+\section*{Contributions}
+
+The planned contributions are:
+
+\begin{enumerate}
+\item A phone-as-brain ground rover in which a consumer phone is the only onboard computer for sensing, pose estimation, mapping, planning, and control, with a shared Rust core that runs unchanged in simulation.
+\item An autonomy ladder for a supervised ground fleet, implemented as selectable runtime levels with a single onboard arbiter for control authority and takeover.
+\item ARGOS, a one-operator fleet supervision interface with a shared fleet map, one-click autonomy switching, and one-click takeover.
+\item An experimental study of how much autonomy missions need and when operators choose to intervene, as fleet size, communication quality, and environment vary.
+  \todo{Fill in once the study is run; do not claim findings before then.}
+\end{enumerate}
+
+\section*{Scope}
+
+The thesis treats a homogeneous fleet of Terra ground rovers supervised by one operator.
+Heterogeneous fleets, aerial vehicles, and multiple cooperating operators are outside its scope.
+The main experimental scope is L0--L3; L4 is evaluated where the platform supports it, and L5 is discussed as future work.
+Disaster response is the motivating application.
+The same cost and deployability constraints apply to fire and rescue and to surveillance, but this thesis does not evaluate those settings separately.
+
+\section*{Thesis outline}
+
+\todo{Confirm chapter list and numbering against the final structure.}
+Chapter~\ref{ch:background} reviews robots in disaster response, levels of autonomy, supervisory control of multiple robots, operator interfaces, communication constraints, and low-cost navigation, and identifies the gaps this thesis addresses.
+Chapter~2 describes the platform: the Terra rover, the phone-as-brain software stack, and the Zorvane simulator.
+Chapter~3 describes onboard autonomy from obstacle avoidance through search.
+Chapter~4 presents the ARGOS operator interface.
+Chapter~5 reports the evaluation.
+Chapter~6 concludes and outlines future work.
