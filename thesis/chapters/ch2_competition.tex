@@ -88,7 +88,7 @@ Read as a robotics problem, a NEXT match is a loop of five tasks: \emph{search} 
 Each of those tasks fits a different rung of the autonomy ladder in Table~\ref{tab:intro-levels}.
 Searching a penalty box for balls is a coverage problem (L4).
 Travel across the pitch is a long waypoint drive with occasional obstacles, such as other robots and buckets (L2--L3).
-The final approach to a bucket rim is a short, precise manoeuvre where a mistake costs seven points (L0--L1, or a supervised L3 approach).
+The final approach to a bucket rim is a short, precise manoeuvre where a mistake costs seven points (L0--L1, or an L3 approach the operator watches closely).
 Because one alliance's operators are confined to the Base and may run several vehicles, the match is also a direct test of the one-operator, many-robots setting.
 
 \section{The experimental environment}
@@ -143,7 +143,7 @@ An iPhone rides on the rover and runs TerraPhone, a Swift application around the
 The phone provides every sensor the autonomy uses: the rear camera and ARKit visual--inertial pose, depth where the handset has it, the Core Motion IMU, GPS, and the compass.
 The Rust core holds state estimation, a rolling local occupancy map (200~$\times$~200 cells at 0.1~m, so 20~$\times$~20~m), the control-authority arbiter, the planners, and velocity control.
 The control loop ticks every 10~ms, and wheel commands go out every fifth tick, at 20~Hz.
-The arbiter is the single owner of motion: teleoperation, assisted teleoperation, the two waypoint levels, supervised exploration, autonomous exploration, and target search all pass through it, and an emergency stop latches until an explicit, healthy reset.
+The arbiter is the single owner of motion: teleoperation, assisted teleoperation, the two waypoint levels, exploration, and target search all pass through it, and an emergency stop latches until an explicit, healthy reset.
 
 The phone does not run a second planner when it supervises the simulator; in that mode it sends goals and control intent to Zorvane instead.
 Depthless handsets hold any level that needs a map.
@@ -194,11 +194,10 @@ A frontier is a free map cell next to unknown space.
 In the autonomous \texttt{explore} level, the rover repeatedly picks a frontier, scored by expected information gain, and drives to it through the same local planner and safety arbiter as every other level; there is no per-goal approval.
 The run ends when its time budget expires, when no reachable frontier remains, when the operator stops or takes over, or when the map goes stale (older than 0.5~s) or a safety hold fires.
 A blocked frontier is retried and, after three failures, excluded for the rest of the run.
-The supervised level uses the same frontiers but waits for the operator to approve each one before moving.
 Exploration reports elapsed and remaining time, the current target, and the observed free area, and logs each frontier choice.
 
 In the ladder of Table~\ref{tab:intro-levels}, exploration and target search together make up L4: exploration covers ground, target search confirms objects in it.
-\todo{Confirm the ARGOS label for this level (``L4 Explore'') once the operator control is merged, and decide whether exploration is reported as part of L4 or as its own condition.}
+ARGOS offers the two as separate controls, ``L4 Explore'' and ``Search''; both are reported as L4.
 
 \subsection{Zorvane: the NEXT field twin}
 \label{sec:env-zorvane}
