@@ -215,8 +215,7 @@ A full scoring loop is implemented: the rover collects balls through its intake,
 Balls fall under physics, and only balls that land in the bucket score, with the 1- and 2-point rule.
 Launching, tagging, out-of-bounds penalties, and knocked-bucket penalties are explained in an intro cutscene but not enforced, so raised buckets are out of reach in simulation.
 
-Zorvane also contains the reference disaster-search mission used to develop the autonomy levels: a seeded world with broken walls, a chokepoint, rubble, and alternate routes, in which rovers must find and confirm three simulated survivors and return within 600~s.
-Its detection rule is a simulator rule, not a validated sensor model.
+Earlier versions of Zorvane also held the reference disaster-search mission used to develop the autonomy levels, which was removed when the simulator became NEXT-only on October 24, 2026 (Chapter~\ref{ch:simulation}).
 
 \subsection{Logging and measurement}
 \label{sec:env-logging}
