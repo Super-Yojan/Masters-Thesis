@@ -20,7 +20,8 @@ For each level in the fixed set (Q3):
 - [ ] L1: same, and drive toward an obstacle; rover blocks it.
 - [ ] L2: place 3 waypoints; rover drives them straight. Effective level `waypoint_direct`.
 - [ ] L3: place 3 waypoints with an obstacle on the line; rover avoids or stops. Effective level `waypoint`.
-- [ ] L4: start with the 10 min budget in Local mode; rover explores; the run status counts down; it ends on budget. Effective level `explore`.
+- [ ] L4 Explore: start with the 10 min budget in Local mode; rover explores; the run status counts down; it ends on budget. Effective level `explore`.
+- [ ] L4 Search: check whether a detector publishes in the chosen venue, so Search appears; set area and class; a target is confirmed. Effective level `target_search`.
 - [ ] Free: switch L3 → L0 → L4 → L3 in one trial; each switch appears in both ARGOS and Terra logs with the same token.
 - [ ] Stop and takeover from each level work in one click and are logged.
 - [ ] Resume after a latched pause works, and the pause is logged with its cause.

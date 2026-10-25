@@ -10,7 +10,7 @@ drives all the time, so "intervention" has no meaning there.
 |---|---|---|---|
 | **A. Fleet coverage at fixed T and N**: observed free area of the sector after 10 min, summed over rovers | Yes | Partly: Terra logs observed free area per tick; summing across rovers is not built | Measures whether the mission gets done. Answers "minimum level that is effective" most directly. |
 | **B. Operator interaction time per rover-minute** | Yes, if goal placement and approvals get a duration | Partly: `operator_control_seconds` covers teleop only; goal clicks have no duration | Closest to fan-out / neglect-time models. Needs a definition of interaction time for clicks. |
-| C. Interventions per minute (takeovers + approvals + rejections + redirects) | No: zero or undefined at L0/L1; Supervised inflates it by design | Yes: `terra-run-summary` `interventions_per_minute` | Good secondary for L2–L4 and Free only. |
+| C. Interventions per minute (takeovers + approvals + rejections + redirects) | No: zero or undefined at L0/L1 | Yes: `terra-run-summary` `interventions_per_minute` | Good secondary for L2–L4 and Free only. |
 | D. Time on task under fixed N | Only if the task has an end state | Yes for mission completion | Cover-a-sector has no natural end; would need a coverage threshold. |
 
 *Draft recommendation: A primary, B and C secondary, TLX as the workload measure.* Yojan decides.

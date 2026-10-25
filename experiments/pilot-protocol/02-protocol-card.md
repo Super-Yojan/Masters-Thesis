@@ -9,7 +9,7 @@ it is a draft default so the card can be dry-run, not a decision.
 | Venue | One venue for the whole pilot, labelled on every trial. See `05-venue.md`. | **Q12** |
 | Task | *Cover a sector*: maximise the observed free area of one penalty box within the trial time. Every fixed level can attempt it (L0/L1 by driving, L2/L3 by waypoints, L4 by exploring), and Terra already logs observed free area. Ball collection and scoring are out of the pilot. | **Q5** task choice |
 | Fleet size N | N ∈ {1, 3}. Same N for every condition within a block. | **Q6** values; how many physical rovers work |
-| Factor A (conditions) | Fixed L0, Fixed L2, Fixed L3, (Fixed L4), Free. In Free the operator may use any level in the contract, Supervised and Search excluded. | **Q3**, **Q2** |
+| Factor A (conditions) | Fixed L0, Fixed L2, Fixed L3, (Fixed L4), Free. In Free the operator may use any level L0–L4. Supervised is never used. | **Q3**, **Q18** |
 | Trial length | 10 min of mission time per trial, from the operator's "go" to a hard stop, regardless of L4 budget. L4 is started with the 10 min budget and restarted if it ends early. | **Q7** |
 | Setup outside the trial | Rover placed at the same start pose, heading locked (straight drive outdoors), GPS fix ≤ 10 m, logs recording, all before "go". Setup time is logged but not scored. | |
 | Operators × trials | Draft: Yojan as dry-run operator only; 3–5 operators who did not build the rover, each doing every condition once per N. | **Q8** who; **Q11** ethics |

@@ -67,7 +67,6 @@ L5 & Decision making & Decides what is needed now and what is best for the fleet
 The ladder is a working taxonomy for this platform, not a general standard.
 Chapter~\ref{ch:background} places it among existing level-of-autonomy frameworks.
 An earlier version of this project used a different ladder, with ``stop and ask'' as its own level; runtime names and research labels are not interchangeable, so every study condition records the exact software revision and behavior used.
-\todo{Decide whether \texttt{supervised} autonomy, which the operator application also offers, is a separate level or a mode across L3--L4.}
 
 \section*{The phone as the robot's brain}
 
@@ -106,7 +105,7 @@ The work is built as three systems that share one robotics core.
 \item \textbf{Terra} is the vehicle.
   A shared Rust core holds state estimation, local occupancy mapping, planning, the control-authority arbiter, and velocity control.
   The TerraPhone iOS application wraps that core, reads the camera, pose, depth, and IMU through ARKit and Core Motion, and sends wheel effort to the motor controller.
-  Terra keeps motion authority on the vehicle: it checks command freshness and arbitrates between teleoperation, assisted teleoperation, waypoint autonomy, and supervised autonomy.
+  Terra keeps motion authority on the vehicle: it checks command freshness and arbitrates between teleoperation, assisted teleoperation, waypoint autonomy, exploration, and target search.
 \item \textbf{ARGOS} (Adaptive Robotic Group Operator System) is the operator layer.
   It is a native desktop application that shows the fleet on one map with each rover's GPS fix and accuracy, sends autonomy levels, goals, and held teleoperation, and keeps stop and L0 manual control one click away.
   ARGOS sends intent; it does not stream low-level velocity as its normal command.

@@ -21,8 +21,8 @@ default, so the documents can be dry-run before they are frozen.
 
 | # | Question | Draft default |
 |---|---|---|
-| Q1 | Is L4 `explore` only, or `explore` + `target_search` as the thesis says? | `explore` only; Search out of the pilot |
-| Q2 | Is Supervised a level or a mode? | Mode on L4, not a pilot condition |
+| Q1 | Is L4 `explore` only, or `explore` + `target_search`? | **Decided:** `explore` + `target_search` |
+| Q2 | Is Supervised a level or a mode? | **Decided:** neither; excluded from the study |
 | Q3 | Which levels are fixed conditions? | L0, L2, L3 (+ L4 if it passes the dry run) |
 | Q4 | Is L4 allowed outdoors (it is refused in GPS mode today)? | L4 in Local mode only, or sim only |
 | Q5 | Pilot task | Cover a sector (one penalty box) |
@@ -38,11 +38,12 @@ default, so the documents can be dry-run before they are frozen.
 | Q15 | Primary endpoint | Fleet coverage at fixed T and N |
 | Q16 | Enforce Fixed in ARGOS (study mode) or by instruction | Not defaulted: needs a call this week |
 | Q17 | ARGOS session export | Not defaulted: export button or manual copy |
+| Q18 | Search inside a Fixed L4 trial (detector-gated, not validated on hardware) | Allowed, availability logged per trial |
 
 ## Before Nov week 1
 
-1. Decide Q1–Q17 (Q15 and Q16 first: without them the conditions cannot be compared).
+1. Decide Q3–Q18 (Q15 and Q16 first: without them the conditions cannot be compared).
 2. Settle the ethics path (04). Until it is settled, only Yojan operates.
 3. Run the dry run (06) in the chosen venue and fix what breaks.
 4. Freeze: copy the decided values into 01 and 02, remove the "draft" headers, tag the repo, and record the ARGOS, Terra, Zorvane and TerraPhone revisions used.
-5. Then update `introduction.tex` (Table `tab:intro-levels`, the supervised TODO, the study TODO) and `ch2_competition.tex` §`sec:next-study` to match.
+5. Then update `introduction.tex` (Table `tab:intro-levels`, the study TODO) and `ch2_competition.tex` §`sec:next-study` to match.

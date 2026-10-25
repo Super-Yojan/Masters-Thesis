@@ -319,15 +319,9 @@ The route is rechecked every 0.2~s and whenever the map changes along it.
 The rover pursues the next route point with Equation~\eqref{eq:pursuit}, with the arrival radius tightened to 0.05~m at intermediate corners, and the planner turns that intent into the executed command.
 Unknown space is never routed through.
 
-\subsection{Supervised exploration}
-
-In supervised mode the rover proposes the next frontier and waits.
-A frontier is a free cell next to unknown space; the proposal is made at most every 0.1~s, expires after 30~s, and a rejected point is excluded for 30~s.
-Only after the operator approves does the proposal become a goal, followed as in L3.
-
 \subsection{L4: frontier exploration}
 
-L4 Explore runs the same frontier search without approval, for a time budget $T_b$ set by the operator.
+L4 Explore drives to frontiers, free cells next to unknown space, with no per-goal approval, for a time budget $T_b$ set by the operator.
 A breadth-first search from the rover over the grid visits each reachable cell $c$ with travel distance $n(c)$ in cells.
 Its information gain $G(c)$ is the number of unknown cells in a square window of half-width $\lceil \rho / r \rceil + 2$ cells around it.
 The chosen frontier maximizes gain per unit travel,
@@ -375,7 +369,6 @@ L0 Teleop & Operator command, 0.5~s lease & Bypassed & Closes the loop \\
 L1 Assisted & Operator command & Eq.~\eqref{eq:planner-cost} & Drives; planner vetoes \\
 L2 Direct & Pursuit, Eq.~\eqref{eq:pursuit}, to goal & Bypassed & Sets goal; watches \\
 L3 Waypoint & Pursuit along A* route & Eq.~\eqref{eq:planner-cost} & Sets goal \\
-Supervised & Pursuit to approved frontier & Eq.~\eqref{eq:planner-cost} & Approves each goal \\
 L4 Explore & Pursuit to $f^\ast$, Eq.~\eqref{eq:frontier} & Eq.~\eqref{eq:planner-cost}, $H = 1$~s & Sets budget \\
 L4 Search & Pursuit to frontier in bounds; confirmation rule & Eq.~\eqref{eq:planner-cost} & Sets area, class, budget \\
 \bottomrule
