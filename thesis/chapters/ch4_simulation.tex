@@ -1,0 +1,207 @@
+% Chapter 4: Simulation (Zorvane). First draft.
+% Sources: Zorvane repository at 3ddfc92 (Oct 24, 2026): README.md, SCALE.md, VEHICLES.md,
+%   simulator/NEXT.md, simulator/DEPTH_CAMERA.md, docs/src/pages/*.md, Cargo.toml,
+%   terra-source.json, simulator/src/*.rs module headers and defaults
+%   (depth_camera.rs, velocity_controller.rs, physics.rs, terra.rs, outdoor.rs,
+%   control_queue.rs, fpv/, bridge_recording.rs), and commit 5481b47 (NEXT-only);
+%   Terra docs/autonomy/README.md; ARGOS docs/design/3d-dashboard.md.
+% Numbers are simulator defaults read from the code, not measurements.
+% Citations for Bevy, Avian, Gazebo and AirSim are from general knowledge: VERIFY.
+
+\chapter{Simulation}
+\label{ch:simulation}
+
+Chapter~\ref{ch:competition} introduced Zorvane as the digital twin of the NEXT field.
+This chapter describes the simulator itself: what it is for, how it is built, what it models and what it leaves out, and how it is used in this thesis.
+The guiding rule is that the simulator must be indistinguishable from a real rover \emph{at the interface}: an operator station or a test script connected to Zorvane should not need to know that no hardware exists.
+Below that interface, the simulator is deliberately simpler than the world, and Section~\ref{sec:sim-fidelity} lists exactly where.
+
+\section{Role in the thesis}
+\label{sec:sim-role}
+
+The simulator has four jobs.
+
+\begin{enumerate}
+\item \textbf{Algorithm development.}
+  The autonomy levels, from assisted teleoperation to frontier exploration, were developed against the simulator before they were run on a phone.
+  Because Zorvane links the same Terra crates the phone uses, a change to a planner is exercised in simulation with no porting step.
+\item \textbf{Interface development.}
+  ARGOS was built and tested against Zorvane: the fleet map, autonomy controls, waypoint goals, held teleoperation, first-person video, and outdoor GPS missions all work against the simulator before they meet a rover.
+\item \textbf{Scale.}
+  A team owns a handful of rovers; the simulator can field up to 32.
+  The ARGOS design notes plan to repeat the study measures at 15 to 20 vehicles, a fleet size that is only practical in simulation.
+\item \textbf{Practice and training.}
+  The NEXT field, its rules, and its scoring loop let a team rehearse a match, and let a study participant learn the operator station, before going to Field~3.
+\end{enumerate}
+
+The simulator is \emph{not} the venue for the thesis's main results.
+The ARGOS design notes state that the thesis experiment is real-world, NEXT-style search and rescue, and that the simulator is for algorithm development.
+Results obtained in Zorvane are reported as such and are not presented as evidence of physical performance.
+
+\section{Why a custom simulator}
+\label{sec:sim-why}
+
+General robotics simulators such as Gazebo~\citep{koenig2004gazebo} and photorealistic ones such as AirSim~\citep{shah2017airsim} are the usual choices for ground robots.
+Zorvane was written instead, in Rust, for three reasons that follow from the rest of the system.
+First, Terra's autonomy is a Rust library; a Rust simulator links it directly, with no middleware bridge and no second implementation to keep in step.
+Second, the operator contract is Zenoh topics with specific JSON payloads, run and authority revisions, and WebRTC video; matching that contract exactly was simpler in a simulator built around it than by adapting a general one.
+Third, the NEXT field is a specific, flat, outdoor place, which needs accurate geography and game logic more than it needs articulated-body dynamics or terrain.
+\todo{Add a short comparison with ROS~2 and Gazebo-based fleet simulators, and say what Zorvane gives up by not using them.}
+
+\section{Architecture}
+\label{sec:sim-arch}
+
+Zorvane is built on the Bevy game engine~\citep{bevy2026} with the Avian physics engine~\citep{avian2026}.
+One Bevy unit is one metre.
+The repository is a Rust workspace with two members: the simulator binary and a vehicle-body crate.
+The robotics crates (types, control, waypoint following, mapping, navigation, state estimation, transport, autonomy, and the experiment recorder) stay in the Terra repository, where the phone also compiles them, and Zorvane builds against a pinned Terra revision recorded in the repository.
+Pinning keeps the phone and the simulator on the same autonomy code, and makes every simulated run traceable to an exact revision.
+
+Figure~\ref{fig:sim-arch} shows the main parts.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners, align=center, minimum width=3.0cm, minimum height=1.0cm, font=\small},
+  terra/.style={box, fill=black!6},
+  lbl/.style={font=\scriptsize, align=center},
+  >=Stealth]
+  \node[box] (world) at (0,0) {NEXT field\\pitch, balls, buckets,\\Field~3 surroundings};
+  \node[box] (body) at (0,-2.2) {Vehicle body\\CrabTrapBot or\\Terra chassis};
+  \node[box] (sensors) at (4.6,0) {Simulated sensors\\depth, RGB, IMU,\\VIO, GPS, heading};
+  \node[box] (physics) at (4.6,-2.2) {Avian physics\\100~Hz fixed step};
+  \node[terra] (terra) at (9.2,0) {Terra crates\\mapping, arbiter,\\planners, control};
+  \node[box] (bridge) at (9.2,-2.2) {Zenoh bridge\\and FPV sender};
+  \node[box] (out) at (9.2,-4.4) {ARGOS, scripts,\\TerraPhone remote};
+  \draw[->] (world) -- (sensors);
+  \draw[->] (body) -- (physics);
+  \draw[->] (sensors) -- node[lbl, above] {frames} (terra);
+  \draw[->] (terra) -- node[lbl, right] {status} (bridge);
+  \draw[->] (terra.south west) -- node[lbl, above, sloped] {wheel forces} (physics.north east);
+  \draw[->] (physics) -- node[lbl, left] {pose} (sensors);
+  \draw[<->] (bridge) -- node[lbl, right] {Zenoh topics,\\WebRTC video} (out);
+\end{tikzpicture}
+\caption{Zorvane's structure. The shaded box is Terra's own code, linked unchanged. Everything a client sees passes through the bridge, on the same topics a real rover uses.}
+\label{fig:sim-arch}
+\end{figure}
+
+\subsection{Vehicle bodies}
+
+A vehicle is a plug-in: a body declares its identifier, its visual model, its chassis box and mass, and its locomotion.
+Two bodies are registered: CrabTrapBot, the default NEXT rover, and the Terra development chassis (Chapter~\ref{ch:rover}).
+Both are differential drive; the simulator turns a differential-drive body into a wheel controller and a physics configuration, and refuses at startup to drive a body whose locomotion it does not support.
+That refusal is the extension point for other vehicle types, such as a drone, without forking the world or the topic layout.
+
+\subsection{Physics and drive}
+
+Each rover is a single dynamic rigid body, a box the size of the chassis, with yaw free and roll and pitch locked.
+Wheel commands become forces on that body, with linear, lateral, and yaw drag tuned so that the rover accelerates, coasts, and resists sideslip plausibly.
+Physics and control run on a 100~Hz fixed step.
+Wheel odometry is ideal.
+There are no wheel joints, no tyre model, and no suspension; skid-steer scrub, for example, is represented only through drag.
+
+\subsection{Sensors}
+
+Each rover carries a front-mounted depth sensor and a colocated RGB camera, both rendered on the GPU and read back asynchronously.
+The default depth sensor is 256~$\times$~192 pixels with a 60$^\circ$ vertical field of view and a range of 0.05 to 30~m, and reports axial depth in metres with NaN for no return.
+It is an ideal sensor: it has no noise and no housing, and it sees opaque and alpha-masked geometry, including meshes with no collider.
+Depth frames carry the camera and body pose at exposure time, so the rover's occupancy map is built from exposure-aligned frames exactly as on the phone.
+
+The velocity controller receives phone-like feedback, an IMU sample every physics step and a visual--inertial pose at 20~Hz, taken from the simulated body.
+Because the Field~3 placement gives the pitch a geographic origin and heading, the simulator also produces GPS fixes and a true heading from the rover's pose.
+These are exact: they are sampled from ground truth and reported with an accuracy of 1~m and 1$^\circ$.
+Section~\ref{sec:sim-fidelity} returns to what that means for outdoor results.
+
+\subsection{The bridge}
+
+The bridge is the simulator's only external interface.
+It publishes and subscribes on the same Zenoh topics as TerraPhone, under a configurable prefix, so a client can be pointed at Zorvane, at a real rover, or at the cloud router without changes.
+It applies the same command rules the phone applies.
+Every non-neutral command must carry the current run identifier and authority revision.
+A teleoperation command expires after 500~ms.
+A stop dominates every other request received in the same control tick, including a reset, and a full command queue drops the oldest non-stop request first.
+Messages larger than 2048 bytes are ignored.
+
+Telemetry rates match the phone's defaults: pose and camera frames at up to 10~Hz, status topics at about 5~Hz, and occupancy as full snapshots when the map changes, or at least every two seconds, with lightweight heartbeats in between.
+First-person video is H.264 over WebRTC, using the same signalling as TerraPhone, and the camera renders only while a call is live.
+A rover can be armed and disarmed, and the simulated actuator relay reports readiness like the real Pi bridge.
+
+\subsection{Game logic}
+
+The NEXT rules in Section~\ref{sec:next-rules} are implemented as simulator systems: the intake that captures balls entering CrabTrapBot's opening, the store and its capacity, the waiting state at the goal line, operator-triggered loading into the dumper, the dump readiness check, ball physics into the bucket, and the score.
+The two game actions, load and dump, are also Zenoh topics, and \texttt{next/status} reports each rover's stage (searching, carrying balls, full and returning, or waiting for the operator), so the game loop can be driven and observed from ARGOS or a script.
+
+\section{Running the simulator}
+\label{sec:sim-running}
+
+Zorvane runs as a desktop application with a start menu, in which the user picks the number of rovers, followed by a narrated cutscene of the rules.
+It also runs headless, with no window, for automated checks.
+Release builds for macOS, Windows, and Linux are produced by continuous integration from a version tag, so an operator or study participant can run the simulator without a Rust toolchain.
+Environment variables select the rover count, the topic prefix and listener, the bucket seed, the lighting, extra balls, the camera view, and whether video is on.
+
+For a study session the simulator can connect to the same authenticated cloud router as the real fleet, under its own prefix, so that the operator station is configured once.
+\todo{Describe the exact session setup for simulated trials: local listener or cloud router, rover count, seed list.}
+
+\section{Logging and repeatability}
+\label{sec:sim-logging}
+
+Every simulated run writes the same JSONL run log as the phone, through Terra's run recorder: the run identity and configuration, each control tick's output, authority events, mission progress, observed free area, contacts, and near misses.
+The simulator also sends diagnostic events to the observability collector described in Chapter~\ref{ch:competition}.
+
+Repeatability comes from three things: the pinned Terra revision, a fixed seed for the bucket layout (and for any extra balls), and a fixed rover spawn on the goal lines.
+Rendering and physics run on the host's GPU and CPU, so two runs with the same seed are not guaranteed to be bit-identical, but they start from the same state and follow the same rules.
+\todo{Measure run-to-run variation for a fixed scripted mission, to state how repeatable a simulated trial is.}
+
+The test suite runs without a graphics device; tests that need a real GPU, such as checking a rendered wall distance in metres, are marked to run only on request.
+
+\section{Fidelity and the reality gap}
+\label{sec:sim-fidelity}
+
+Table~\ref{tab:sim-fidelity} lists what Zorvane models and what it simplifies or omits, and what each gap means for the thesis.
+
+\begin{table}[ht]
+\centering
+\small
+\caption{Simulator fidelity, from the simulator's own code and documentation.}
+\label{tab:sim-fidelity}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+Aspect & In Zorvane & Consequence \\
+\midrule
+Interface & Same topics, payloads, command rules, rates, and video signalling as TerraPhone & Operator-facing behaviour transfers directly; this is what the simulator is built to get right \\
+Autonomy code & Terra crates linked unchanged at a pinned revision & Planner and arbiter logic is the same; its inputs are not \\
+Field & 100~$\times$~64~m pitch at Field~3's geographic placement; OpenStreetMap surroundings; flat & Distances, layout, and GPS frame match; terrain does not \\
+Depth & Ideal GPU depth, 256~$\times$~192, no noise & Obstacle avoidance looks better than on a phone with noisy or missing depth \\
+Pose & IMU and VIO from ground truth; ideal odometry & No VIO drift or tracking loss \\
+GPS and heading & Exact, reported at 1~m and 1$^\circ$ & The GPS accuracy gate and the heading problem (Section~\ref{sec:env-gps}) never trigger; outdoor results must come from Field~3 \\
+Physics & One rigid box, roll and pitch locked, drag-based skid & No tyre slip, tipping, or turf effects; turning limits must be calibrated on the real rover \\
+Mass and motor limit & 20~kg and a 2.29~m/s cap, both unsourced placeholders & Speeds and accelerations are indicative only \\
+Ball handling & Idealized intake and dump chute & Scoring in simulation is an upper bound on the real mechanism \\
+Rules & Scoring for ground buckets only; launching, tagging, and penalties not enforced & Simulated matches are practice, not full matches \\
+Network & Local or router link; no injected loss & Communication loss must be added deliberately for a study \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The pattern is consistent: Zorvane is faithful where the operator meets the system, and idealized where the robot meets the world.
+That suits the thesis's question, which is about how an operator supervises robots at different levels of autonomy, more than about how well any one robot perceives.
+It also sets a clear rule for reporting.
+Interface-level measures from the simulator, such as how often an operator switches level, how quickly they respond, and how many interventions a mission takes, are meaningful as practice and pilot data.
+Robot-level measures, such as obstacle clearance, navigation success, and GPS arrival accuracy, are reported only from the real rover.
+\todo{Add sensor noise, VIO drift, GPS error, and link loss as configurable options, and report which were enabled for any simulated result.}
+
+\section{History}
+\label{sec:sim-history}
+
+The simulator began inside the Terra repository as a Bevy world for developing the rover's control and autonomy, and was moved into its own repository, Zorvane, with the shared robotics crates left in Terra.
+Over October 2026 it held several worlds: a practice town, real elevation tiles around George Mason University, photorealistic 3D-tile scenery, a seeded disaster-search mission with broken walls, rubble, and three hidden simulated survivors, and a browser build.
+On October 24, 2026, Zorvane was reduced to the single NEXT field; the other worlds, the survivor mission and its detector, and the browser build were removed.
+Terra's documentation still describes the disaster-search mission, and its mission bookkeeping remains in the shared code, which ARGOS still reads.
+\todo{Decide whether the disaster-search mission is needed for the study; if so, restore it from history at a pinned revision and describe it here.}
+
+\section{Summary}
+
+Zorvane is a Rust simulator of the NEXT field that links Terra's autonomy unchanged and speaks exactly the protocol a real rover speaks.
+It supports algorithm and interface development, fleets larger than the team can build, and practice on the competition field.
+Its sensors, pose, GPS, and physics are idealized, so it is used for operator-facing measures and pilot work, and every robot-level claim in this thesis is checked on the real rover.
+The next chapter describes the software architecture and the autonomy levels that run in both places.

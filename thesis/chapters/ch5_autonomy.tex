@@ -1,0 +1,438 @@
+% Chapter 5: System architecture and autonomy. First draft of the autonomy mathematics.
+% Every equation and default value below is transcribed from the Terra repository at
+% main 293acc1 (Oct 24, 2026):
+%   crates/terra-state/src/lib.rs            (velocity estimation)
+%   crates/terra-mapping/src/lib.rs          (occupancy update)
+%   crates/terra-control/src/{lib,turning}.rs (velocity controller, turning policy)
+%   crates/terra-navigation/src/{lib,astar}.rs (local planner, A*)
+%   crates/terra-waypoint/src/lib.rs         (pursuit, local projection)
+%   crates/terra-autonomy/src/arbiter/motion.rs (per-level composition)
+%   crates/terra-autonomy/src/search.rs      (target confirmation)
+%   crates/terra-exploration/src/*.rs        (frontier exploration)
+%   crates/terra-autonomy/src/outdoor.rs, outdoor/heading.rs (GPS guidance, heading fusion)
+%   crates/terra-types/src/timing.rs         (time constants)
+% plus Terra PR #60 and ARGOS PR #64 (both open on Oct 25, 2026) for L4 Explore.
+% Defaults are software starting values, not calibrated physical limits.
+% The architecture sections (apps and communication) are still to be written.
+
+\chapter{System Architecture and Autonomy}
+\label{ch:autonomy}
+
+This chapter describes the software that runs the rover and the mathematics behind each autonomy level.
+Section~\ref{sec:arch} outlines the architecture.
+The rest of the chapter gives the models and control laws in the order a command passes through them: state estimation and mapping (Sections~\ref{sec:auto-state}--\ref{sec:auto-map}), the vehicle model and velocity controller (Section~\ref{sec:auto-control}), the turning policy (Section~\ref{sec:auto-turning}), the local planner (Section~\ref{sec:auto-planner}), and then the intent each level produces (Section~\ref{sec:auto-levels}).
+Section~\ref{sec:auto-outdoor} covers outdoor GPS guidance and heading fusion.
+
+Every equation in this chapter is taken from the Terra source code, and every default value is the one in the code as of October 2026.
+They are software starting points, chosen in simulation; Chapter~\ref{ch:rover} lists the physical limits that still have to be measured.
+
+\section{Architecture}
+\label{sec:arch}
+
+\todo{Write the architecture sections: TerraPhone (Swift) around the Terra Rust core via UniFFI; ARGOS (Rust, GPUI); the Zenoh topic contract; run identity and authority revisions; the Pi Bluetooth protocol; logging. Keep implementation detail for an appendix.}
+
+For this chapter one property of the architecture matters: all motion authority sits in one place, the \emph{arbiter} in the Terra core on the phone.
+Operator commands, waypoint goals, and autonomous goals are all \emph{intents}.
+The arbiter turns the intent of the active level into a velocity command, checks it, and hands it to the velocity controller.
+The control loop ticks every 10~ms; wheel commands are sent to the motor bridge every fifth tick, at 20~Hz; the local planner works on a 0.1~s step.
+
+\section{Notation and frames}
+\label{sec:auto-notation}
+
+The rover pose in the local map frame is $\mathbf{p} = (x, y, \theta)$, with $x, y$ in metres and yaw $\theta$ in radians, measured counter-clockwise from the $+x$ axis.
+The body twist is $(v, \omega)$: forward speed in m/s and yaw rate in rad/s, positive to the left.
+A hat marks an estimate ($\hat v$), a star a target ($v^\ast$), and a subscript $i$ the intent produced by an autonomy level ($v_i, \omega_i$).
+$\operatorname{clip}(a, \pm b)$ limits $a$ to $[-b, b]$, and $\operatorname{wrap}(\cdot)$ maps an angle to $[-\pi, \pi)$.
+Geographic headings are in degrees, clockwise from true north.
+
+\section{State estimation}
+\label{sec:auto-state}
+
+The velocity controller needs the rover's forward speed and yaw rate.
+The phone has no wheel encoders in the loop, so Terra estimates them from ARKit's visual--inertial odometry (VIO) and the Core Motion IMU.
+The latest VIO sample, at time $t_0$, gives an orientation quaternion $\mathbf{q}_0$ and a world-frame velocity $\mathbf{v}_0$.
+Because VIO arrives late and at a lower rate than the IMU, the estimator replays the retained IMU samples $(\mathbf{a}_k, \boldsymbol{\omega}_k)$ from $t_0$ to the current time.
+For each interval $\delta_k$,
+\begin{align}
+  \mathbf{q}_{k+\frac12} &= \mathbf{q}_k \otimes \exp\!\left(\tfrac12 \boldsymbol{\omega}_k \delta_k\right), \\
+  \mathbf{v}_{k+1} &= \mathbf{v}_k + R(\mathbf{q}_{k+\frac12})\,\mathbf{a}_k\,\delta_k, \\
+  \mathbf{q}_{k+1} &= \mathbf{q}_k \otimes \exp\!\left(\boldsymbol{\omega}_k \delta_k\right),
+\end{align}
+where $\exp(\cdot)$ maps a rotation vector to a unit quaternion and $R(\mathbf{q})$ is the corresponding rotation.
+The estimate is the body-frame forward component and the latest gyro yaw rate:
+\begin{equation}
+  \hat v = \left[R(\mathbf{q}_N)^{\top} \mathbf{v}_N\right]_x, \qquad \hat\omega = \omega_{z,N}.
+\end{equation}
+The estimate is withheld, and the controller stops, if VIO reports lost tracking, if the IMU is older than 0.1~s, or if VIO is older than 0.35~s.
+
+\section{Occupancy mapping}
+\label{sec:auto-map}
+
+The local map is a rolling grid of $200 \times 200$ cells at resolution $r = 0.1$~m.
+Each cell holds a log-odds value $\ell$.
+For each depth frame, every sampled pixel $(u, v)$ with depth $z$ is back-projected through the camera intrinsics,
+\begin{equation}
+  \mathbf{r}_c = \left(\frac{(u - c_x) z}{f_x},\; \frac{(v - c_y) z}{f_y},\; z\right),
+\end{equation}
+rotated into the world frame, and classified as an obstacle hit if its endpoint lies between 0.15 and 2.0~m above the ground plane, within 15~m of the camera.
+The cells along the ray, found by Bresenham traversal, are marked free, and the endpoint cell is marked occupied for a hit.
+Each cell is updated at most once per frame, with obstacle evidence taking precedence:
+\begin{equation}
+  \ell \leftarrow \operatorname{clip}\!\left(\ell + \begin{cases} +0.85 & \text{occupied} \\ -0.40 & \text{free} \end{cases},\; \pm 4\right).
+\end{equation}
+The map published to the planner stores $P = 100\,\sigma(\ell) = 100 / (1 + e^{-\ell})$ for observed cells and $-1$ for unobserved ones.
+A cell is \emph{occupied} if $P \ge 65$, that is if $\ell \ge \ln(65/35) \approx 0.62$, \emph{free} if $0 \le P < 65$, and \emph{unknown} otherwise.
+The asymmetric increments mean that one hit outweighs two misses, so a thin obstacle seen intermittently stays in the map.
+
+\section{Vehicle model and velocity control}
+\label{sec:auto-control}
+
+\subsection{Kinematics}
+
+Both chassis are differential drive.
+Treated as a unicycle,
+\begin{equation}
+  \dot x = v \cos\theta, \qquad \dot y = v \sin\theta, \qquad \dot\theta = \omega,
+  \label{eq:unicycle}
+\end{equation}
+with the wheel speeds related to the body twist by
+\begin{equation}
+  v = \frac{v_R + v_L}{2}, \qquad \omega = \frac{v_R - v_L}{b_{\text{eff}}},
+\end{equation}
+where $b_{\text{eff}}$ is the effective track width.
+On a skid-steer chassis $b_{\text{eff}}$ is larger than the geometric track because the wheels scrub sideways in a turn.
+The controller below never uses $b_{\text{eff}}$ explicitly: it works in normalized wheel effort, and the track width, motor gain, and scrub are absorbed into its feedforward and feedback gains.
+Equation~\eqref{eq:unicycle} is the model the planner uses to predict trajectories.
+
+\subsection{Velocity controller}
+
+The velocity controller turns a target twist $(v^\ast, \omega^\ast)$ into normalized left and right wheel efforts $u_L, u_R \in [-1, 1]$.
+Targets are first limited to $|v^\ast| \le 2$~m/s and $|\omega^\ast| \le 2$~rad/s.
+With errors $e_v = v^\ast - \hat v$ and $e_\omega = \omega^\ast - \hat\omega$, the linear and yaw efforts are feedforward plus proportional--integral terms,
+\begin{align}
+  u_v &= k^{\text{ff}}_v v^\ast + k^{p}_v e_v + I_v, \label{eq:uv}\\
+  u_\omega &= k^{\text{ff}}_\omega \omega^\ast + k^{p}_\omega e_\omega + I_\omega. \label{eq:uw}
+\end{align}
+They are mixed into wheel efforts and scaled down together, which preserves the ratio between turning and driving when the command saturates:
+\begin{equation}
+  s = \max\!\left(1,\; \frac{\max(|u_v - u_\omega|,\, |u_v + u_\omega|)}{u_{\max}}\right), \qquad
+  u_L = \frac{u_v - u_\omega}{s}, \quad u_R = \frac{u_v + u_\omega}{s}.
+  \label{eq:mix}
+\end{equation}
+Unless turning in place is allowed, the wheels may not counter-rotate: if $u_L u_R < 0$, the wheel opposing the mean direction $\tfrac12(u_L + u_R)$ is set to zero.
+The integrators use back-calculation anti-windup against the effort actually applied, $\bar u_v = \tfrac12(u_L + u_R)$ and $\bar u_\omega = \tfrac12(u_R - u_L)$:
+\begin{align}
+  I_v &\leftarrow \operatorname{clip}\!\left(I_v + \left[k^{i}_v e_v + k_{\text{aw}}(\bar u_v - u_v)\right]\Delta t,\; \pm u_{\max}\right), \\
+  I_\omega &\leftarrow \operatorname{clip}\!\left(I_\omega + \left[k^{i}_\omega e_\omega + k_{\text{aw}}(\bar u_\omega - u_\omega)\right]\Delta t,\; \pm u_{\max}\right).
+\end{align}
+When the target is zero and the rover is nearly still ($|\hat v|, |\hat\omega| < 0.015$), the outputs are forced to zero and the integrators reset, so the motors do not hum at rest.
+If in-place turning is allowed and the target is a pure rotation, the controller bypasses the loop and applies a fixed spin effort, $u_R = -u_L = u_s \operatorname{sgn}\omega^\ast$.
+
+The controller stops (zero effort, integrators cleared) when the target is 0.5~s old or older, when the time step is non-positive or longer than 0.1~s, or when the estimator is not healthy.
+Table~\ref{tab:controller-gains} lists the defaults.
+With $k^{\text{ff}}_v = 1/3$, full effort corresponds to a feedforward speed of 3~m/s.
+
+\begin{table}[ht]
+\centering
+\caption{Velocity controller defaults (\texttt{ControllerConfig}). \todo{tune on CrabTrapBot and report the tuned values}}
+\label{tab:controller-gains}
+\begin{tabular}{@{}l l r@{}}
+\toprule
+Symbol & Meaning & Default \\
+\midrule
+$k^{p}_v,\; k^{i}_v$ & Linear proportional and integral gains & 0.3,\; 0.6 \\
+$k^{p}_\omega,\; k^{i}_\omega$ & Yaw proportional and integral gains & 0.1,\; 0.3 \\
+$k^{\text{ff}}_v,\; k^{\text{ff}}_\omega$ & Linear and yaw feedforward & $1/3$,\; 0.2 \\
+$k_{\text{aw}}$ & Anti-windup gain & 4.0 \\
+$u_{\max}$ & Maximum effort & 1.0 \\
+$u_s$ & In-place spin effort & 0.35 \\
+-- & Target timeout; maximum step & 0.5~s;\; 0.1~s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Turning policy}
+\label{sec:auto-turning}
+
+Skid-steer turns scrub the tyres and disturb the phone's visual tracking, so every \emph{managed} command, meaning ARGOS teleoperation and every autonomous level, passes through a turning limiter before the controller.
+Local joystick driving on the phone does not.
+Given a requested $\omega^\ast$ at forward speed $v$, the limiter first caps the yaw rate by a minimum turning radius $R_{\min}$,
+\begin{equation}
+  \omega_{\text{cap}} = \begin{cases} \omega_{\max} & \text{in-place turns allowed,} \\ \min(\omega_{\max},\; |v| / R_{\min}) & \text{otherwise,} \end{cases}
+\end{equation}
+so that the rover cannot turn on the spot by default.
+It then slews from the previous command $\omega_{\text{prev}}$ toward the capped request $\omega_d = \operatorname{clip}(\omega^\ast, \pm\omega_{\text{cap}})$, passing through zero on a reversal:
+\begin{align}
+  g &= \begin{cases} 0 & \omega_{\text{prev}}\,\omega_d < 0, \\ \omega_d & \text{otherwise,} \end{cases} \qquad
+  \alpha = \begin{cases} \alpha_{\text{dec}} & \omega_{\text{prev}}\,\omega_d < 0 \text{ or } |g| < |\omega_{\text{prev}}|, \\ \alpha_{\text{acc}} & \text{otherwise,} \end{cases} \\
+  \omega &= \operatorname{clip}\!\left(\omega_{\text{prev}} + \operatorname{clip}(g - \omega_{\text{prev}},\, \pm\alpha\Delta t),\; \pm\omega_{\text{cap}}\right).
+\end{align}
+The defaults are $\omega_{\max} = 0.5$~rad/s, $\alpha_{\text{acc}} = 0.5$~rad/s$^2$, $\alpha_{\text{dec}} = 0.8$~rad/s$^2$, $R_{\min} = 0.5$~m, and in-place turning off; reverse speed is limited to 0.15~m/s.
+When an autonomous level needs to face a new direction from rest, the arbiter plans a multi-point manoeuvre of forward and reverse arcs that respects $R_{\min}$, rather than spinning.
+
+\section{Local planner}
+\label{sec:auto-planner}
+
+The local planner is the safety layer for every level that checks obstacles.
+It is a deterministic velocity-space sampler in the family of the dynamic window approach~\citep{fox1997dwa}: it searches the velocities reachable in one step for the one closest to the intent whose predicted path stays clear.
+
+\subsection{Dynamic window}
+
+From the current measured twist $(\hat v, \hat\omega)$ and planning step $\Delta t = 0.1$~s, the reachable window is
+\begin{align}
+  V &= [\hat v - a\Delta t,\; \hat v + a\Delta t] \cap [-v_{\text{rev}},\; v_{\max}], \\
+  \Omega &= [\hat\omega - \alpha\Delta t,\; \hat\omega + \alpha\Delta t] \cap [-\omega_{\max},\; \omega_{\max}].
+\end{align}
+The planner samples an $11 \times 11$ grid of $(v, \omega) \in V \times \Omega$, evenly spaced including the endpoints.
+For managed commands each sample is first passed through the turning limiter of Section~\ref{sec:auto-turning}, so the planner only considers commands that will actually be executed.
+
+\subsection{Trajectory rollout with braking}
+
+Each candidate is rolled forward under Equation~\eqref{eq:unicycle} for the prediction horizon $H$, followed by a braking tail long enough to stop at deceleration $a_b$:
+\begin{equation}
+  T = H + \frac{|v|}{a_b}, \qquad
+  \lambda(t) = \begin{cases} 1 & t \le H, \\ \max\!\left(0,\; 1 - \dfrac{(t - H)\,a_b}{|v|}\right) & t > H. \end{cases}
+\end{equation}
+Both velocities are scaled by $\lambda(t)$, which preserves the path's curvature while braking.
+With step $\delta = \min\!\left(r / (2\max(|v|, 0.1)),\; 0.1\right)$, so that the rover advances at most half a cell per step,
+\begin{equation}
+  \theta_{n+1} = \theta_n + \lambda\omega\delta, \quad
+  x_{n+1} = x_n + \lambda v \cos\theta_{n+1}\,\delta, \quad
+  y_{n+1} = y_n + \lambda v \sin\theta_{n+1}\,\delta.
+\end{equation}
+
+\subsection{Admissibility}
+
+The rover footprint is a disc of radius $\rho$.
+A pose is clear if no cell whose centre lies within $\rho + 0.7072\,r$ of the rover centre is occupied, outside the map, or unknown; the extra half cell diagonal makes the test conservative.
+Unknown cells are tolerated only under the rover's footprint at its starting pose, so that it can drive off its own unobserved underbody, and never when reversing.
+A candidate is \emph{admissible} if every pose of its rollout, including the braking tail, is clear.
+Because the tail is included, an admissible command is one the rover can still stop from before reaching anything the map knows about, or anything it has not seen.
+
+\subsection{Selection}
+
+Among admissible candidates the planner minimizes
+\begin{equation}
+  J(v, \omega) = (v - v_i)^2 + 0.3\,(\omega - \omega_i)^2 + \lambda_{\text{rev}}\max(0, -v),
+  \label{eq:planner-cost}
+\end{equation}
+with ties broken by sample order.
+If no candidate is admissible the command is zero and the arbiter reports \texttt{obstacle\_blocked}.
+If the chosen command differs from the intent by more than 0.15 in either component the decision is labelled \texttt{assisted}, which is how the operator station shows that the planner, not the operator or the follower, is shaping the motion.
+Table~\ref{tab:planner} lists the defaults.
+
+\begin{table}[ht]
+\centering
+\caption{Local planner defaults (\texttt{PlannerConfig}).}
+\label{tab:planner}
+\begin{tabular}{@{}l l r@{}}
+\toprule
+Symbol & Meaning & Default \\
+\midrule
+$\rho$ & Footprint radius & 0.65~m \\
+$v_{\max},\; v_{\text{rev}}$ & Forward and reverse speed limits & 2.0,\; 0.15~m/s \\
+$\omega_{\max}$ & Yaw rate limit & 2.0~rad/s \\
+$a,\; \alpha$ & Linear and yaw acceleration & 1.0~m/s$^2$,\; 2.0~rad/s$^2$ \\
+$a_b$ & Braking deceleration & 1.0~m/s$^2$ \\
+$H$ & Prediction horizon & 2.0~s (1.0~s in L4 Explore) \\
+$\lambda_{\text{rev}}$ & Reverse penalty & 0.05 \\
+$\Delta t$ & Planning step & 0.1~s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Control laws for each autonomy level}
+\label{sec:auto-levels}
+
+Each level differs only in how it produces the intent $(v_i, \omega_i)$ and in which of the layers above it uses.
+Figure~\ref{fig:pipeline} shows the pipeline, and Table~\ref{tab:level-math} summarizes it.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners, align=center, minimum width=2.0cm, minimum height=0.9cm, font=\small},
+  lbl/.style={font=\scriptsize, align=center},
+  >=Stealth]
+  \node[box] (intent) at (0,0) {Level\\intent};
+  \node[box] (planner) at (3.3,0) {Local\\planner};
+  \node[box] (turn) at (6.6,0) {Turning\\limiter};
+  \node[box] (ctrl) at (9.9,0) {Velocity\\controller};
+  \node[box] (motor) at (13.2,0) {Wheel\\effort};
+  \draw[->] (intent) -- node[lbl, above] {$(v_i,\omega_i)$} (planner);
+  \draw[->] (planner) -- node[lbl, above] {$(v,\omega)$} (turn);
+  \draw[->] (turn) -- node[lbl, above] {$(v^\ast,\omega^\ast)$} (ctrl);
+  \draw[->] (ctrl) -- node[lbl, above] {$u_L, u_R$} (motor);
+  \draw[->] (intent.south) to[out=-30, in=-150] node[lbl, below] {L0, L2: planner bypassed} (turn.south);
+\end{tikzpicture}
+\caption{Command pipeline. L0 and L2 skip the local planner; every managed command passes the turning limiter; every command passes the velocity controller and its stop conditions.}
+\label{fig:pipeline}
+\end{figure}
+
+\subsection{L0: teleoperation}
+
+The intent is the operator's command, limited and checked for freshness:
+\begin{equation}
+  (v_i, \omega_i) = \begin{cases} \left(\operatorname{clip}(v_{\text{op}}, \pm 2),\; \operatorname{clip}(\omega_{\text{op}}, \pm 2)\right) & t - t_{\text{op}} < 0.5~\text{s}, \\ (0, 0) & \text{otherwise.} \end{cases}
+\end{equation}
+The command bypasses the planner: $(v, \omega) = (v_i, \omega_i)$.
+From ARGOS it is a managed command, so it still passes the turning limiter and the velocity controller.
+The operator closes the outer loop, and the 0.5~s lease means a lost link stops the rover within half a second.
+
+\subsection{L1: assisted teleoperation}
+
+The intent is the same operator command, but the planner chooses the motion:
+\begin{equation}
+  (v, \omega) = \arg\min_{(v,\omega) \in \mathcal{A}} J(v, \omega \mid v_{\text{op}}, \omega_{\text{op}}),
+\end{equation}
+where $\mathcal{A}$ is the admissible set.
+On an open map the result equals the operator's command up to the acceleration window; near an obstacle the planner slows or steers away, and the decision is labelled \texttt{assisted}.
+
+\subsection{Pursuit toward a goal}
+
+L2 and L3 both use a pure-pursuit-style heading law toward a target point $\mathbf{g}$.
+With $d = \lVert \mathbf{g} - (x, y) \rVert$ and bearing error $e_\theta = \operatorname{wrap}(\operatorname{atan2}(g_y - y,\, g_x - x) - \theta)$,
+\begin{align}
+  \omega_i &= \operatorname{clip}(k_\theta e_\theta,\; \pm\omega_{\max}^{\text{wp}}), \\
+  v_i &= \begin{cases} v_c \left(1 - \dfrac{|e_\theta|}{\gamma}\right) \max\!\left(\min\!\left(\dfrac{d}{R_s}, 1\right),\; 0.2\right) & |e_\theta| < \gamma, \\ 0 & |e_\theta| \ge \gamma. \end{cases}
+  \label{eq:pursuit}
+\end{align}
+The rover drives at cruise speed $v_c$ when aligned and far, slows linearly with heading error and stops forward motion beyond the gate $\gamma$, and slows to at least 20\% of cruise inside the slow radius $R_s$.
+Inside the arrival radius $R_a$ it stops, or, if the goal has a final yaw $\theta_g$, turns with $\omega_i = \operatorname{clip}(k_\theta \operatorname{wrap}(\theta_g - \theta), \pm\omega_{\max}^{\text{wp}})$ until within 0.12~rad.
+The defaults are $v_c = 1.0$~m/s, $k_\theta = 1.6$~s$^{-1}$, $\omega_{\max}^{\text{wp}} = 1.2$~rad/s, $\gamma = 0.55$~rad, $R_s = 3.0$~m, and $R_a = 0.75$~m.
+
+\subsection{L2: direct waypoint}
+
+L2 applies Equation~\eqref{eq:pursuit} straight toward the operator's goal and bypasses the planner, so it does not avoid obstacles.
+It is the baseline that isolates the value of obstacle avoidance in L3.
+
+\subsection{L3: waypoint with obstacle avoidance}
+
+L3 adds a global route and the local planner.
+An A* search on the occupancy grid finds a route of free cells from the rover to the goal.
+The graph is four-connected with unit edge cost, which prevents cutting corners diagonally past obstacles, and a cell is traversable only if the footprint test of Section~\ref{sec:auto-planner} passes there.
+The heuristic is the Manhattan distance in cells,
+\begin{equation}
+  h(c) = |c_{\text{col}} - g_{\text{col}}| + |c_{\text{row}} - g_{\text{row}}|,
+\end{equation}
+which is admissible and consistent for unit-cost four-connected motion, so the route is shortest in cell count.
+The route is rechecked every 0.2~s and whenever the map changes along it.
+The rover pursues the next route point with Equation~\eqref{eq:pursuit}, with the arrival radius tightened to 0.05~m at intermediate corners, and the planner turns that intent into the executed command.
+Unknown space is never routed through.
+
+\subsection{Supervised exploration}
+
+In supervised mode the rover proposes the next frontier and waits.
+A frontier is a free cell next to unknown space; the proposal is made at most every 0.1~s, expires after 30~s, and a rejected point is excluded for 30~s.
+Only after the operator approves does the proposal become a goal, followed as in L3.
+
+\subsection{L4: frontier exploration}
+
+L4 Explore runs the same frontier search without approval, for a time budget $T_b$ set by the operator.
+A breadth-first search from the rover over the grid visits each reachable cell $c$ with travel distance $n(c)$ in cells.
+Its information gain $G(c)$ is the number of unknown cells in a square window of half-width $\lceil \rho / r \rceil + 2$ cells around it.
+The chosen frontier maximizes gain per unit travel,
+\begin{equation}
+  f^\ast = \arg\max_{c \in \mathcal{F}} \frac{G(c)}{1 + n(c)},
+  \label{eq:frontier}
+\end{equation}
+over the candidate set $\mathcal{F}$ of cells that pass the footprint test with no unknown-space exception, have $G(c) > 0$, lie more than $\max(\rho, 0.8~\text{m})$ from the rover, and are more than 1~m from any blacklisted point.
+The frontier becomes a goal followed through the planner, with the horizon reduced to $H = 1$~s so that goals at the edge of the map remain reachable while unknown cells stay blocked.
+If the rover makes no progress for 5~s, the frontier is blacklisted and another is chosen; after three attempts a point is excluded for the rest of the run.
+Progress is reported as observed free area and explored fraction,
+\begin{equation}
+  A_{\text{free}} = N_{\text{free}}\,r^2, \qquad \eta = \frac{N_{\text{known}}}{N_{\text{cells}}}.
+\end{equation}
+The run ends when $t \ge T_b$, when $\mathcal{F}$ is empty, on a stop or takeover, or on a sustained stale map or safety hold.
+Terra PR~\#60, open at the time of writing, gives the map-stale ending a 3~s grace while still holding motion from the first stale tick.
+In ARGOS this level is offered as ``L4 Explore'' with a 3, 5, or 10~minute budget (ARGOS PR~\#64, open at the time of writing).
+
+\subsection{L4: target search}
+
+Target search uses frontier navigation inside an operator-defined rectangle, implemented by marking every cell outside the rectangle as occupied, and confirms a target from detector observations $\{(x_k, y_k, c_k, t_k)\}$.
+A target is confirmed when at least $N$ consecutive fresh observations of the requested class satisfy
+\begin{equation}
+  c_k \ge c_{\min}, \qquad \max_{j,k} \lVert (x_j, y_j) - (x_k, y_k) \rVert \le d_{\text{agree}}, \qquad t_{\text{last}} - t_{\text{first}} \ge \tau_{\text{span}},
+\end{equation}
+with no gap or age above $\tau_{\text{fresh}}$; a disagreeing observation restarts the set.
+The defaults are $N = 3$, $c_{\min} = 0.8$, $d_{\text{agree}} = 1$~m, $\tau_{\text{span}} = 0.5$~s, and $\tau_{\text{fresh}} = 0.5$~s.
+These are software thresholds, not a calibrated detector model.
+
+\subsection{L5}
+
+L5, in which the robot decides what the fleet needs, is not implemented.
+Chapter~6 discusses the recommendation system that would sit between the operator and such decisions.
+
+\begin{table}[ht]
+\centering
+\small
+\caption{How each level produces motion. ``Managed'' commands pass the turning limiter.}
+\label{tab:level-math}
+\begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}p{2.4cm}@{}}
+\toprule
+Level & Intent $(v_i, \omega_i)$ & Local planner & Human role \\
+\midrule
+L0 Teleop & Operator command, 0.5~s lease & Bypassed & Closes the loop \\
+L1 Assisted & Operator command & Eq.~\eqref{eq:planner-cost} & Drives; planner vetoes \\
+L2 Direct & Pursuit, Eq.~\eqref{eq:pursuit}, to goal & Bypassed & Sets goal; watches \\
+L3 Waypoint & Pursuit along A* route & Eq.~\eqref{eq:planner-cost} & Sets goal \\
+Supervised & Pursuit to approved frontier & Eq.~\eqref{eq:planner-cost} & Approves each goal \\
+L4 Explore & Pursuit to $f^\ast$, Eq.~\eqref{eq:frontier} & Eq.~\eqref{eq:planner-cost}, $H = 1$~s & Sets budget \\
+L4 Search & Pursuit to frontier in bounds; confirmation rule & Eq.~\eqref{eq:planner-cost} & Sets area, class, budget \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Outdoor guidance and heading fusion}
+\label{sec:auto-outdoor}
+
+\subsection{Geographic goals}
+
+Outdoors, the goal is a latitude and longitude.
+From the current fix $(\varphi_1, \lambda_1)$ to the goal $(\varphi_2, \lambda_2)$, Terra computes the great-circle distance and initial bearing with the haversine formula, using $R_\oplus = 6\,371\,000$~m:
+\begin{align}
+  h &= \sin^2\!\frac{\Delta\varphi}{2} + \cos\varphi_1 \cos\varphi_2 \sin^2\!\frac{\Delta\lambda}{2}, \qquad d = 2R_\oplus \arcsin\sqrt{h}, \\
+  \beta &= \operatorname{atan2}\!\left(\sin\Delta\lambda \cos\varphi_2,\; \cos\varphi_1 \sin\varphi_2 - \sin\varphi_1 \cos\varphi_2 \cos\Delta\lambda\right).
+\end{align}
+The bearing $\beta$ (degrees clockwise from north) is converted into a local yaw $\psi$ using the fused heading of the next subsection, and a local target is placed at most 3~m ahead:
+\begin{equation}
+  \mathbf{g} = (x, y) + \min(d, 3)\,(\cos\psi, \sin\psi).
+\end{equation}
+That target is refreshed at most twice per second and followed exactly as in L3, so the local planner still checks every command; forward speed is capped at 0.3~m/s.
+Arrival requires three distinct fixes within the arrival radius.
+For goals given in a local frame with a geographic origin $(\varphi_0, \lambda_0)$, Terra uses an equirectangular projection, $x_{\text{east}} = (\lambda - \lambda_0)\,k\cos\varphi_0$ and $y_{\text{north}} = (\varphi - \varphi_0)\,k$, with $k = 40\,075\,016.686 / 360$~m per degree.
+
+\subsection{Heading fusion}
+
+GPS gives position, not heading, and the phone's compass near the motors was off by 30--50$^\circ$.
+Terra therefore estimates a single slowly varying offset $c$ (degrees) between the local VIO frame and true north, such that the true heading is
+\begin{equation}
+  h = c - \theta^{\circ},
+\end{equation}
+where $\theta^{\circ}$ is the local yaw in degrees (local yaw is counter-clockwise; true heading is clockwise).
+VIO carries the heading between corrections, and the filter only has to track $c$.
+It is a scalar Kalman filter with random-walk process noise.
+Between corrections the variance grows as
+\begin{equation}
+  P(t) = P_k + q\,(t - t_k), \qquad q = 0.25~\text{deg}^2/\text{s}.
+\end{equation}
+Two measurements of $c$ are available.
+A compass sample $h_c$ with reported accuracy $\sigma_c$ gives $z = h_c + \theta^{\circ}$ with $R = \sigma_c^2$.
+A GPS course-over-ground sample $\chi$ gives $z = \chi + \operatorname{atan2}(\Delta y, \Delta x)^{\circ}$, pairing it with the local direction of travel over the same 1~s window, with $R = \max(\sigma_\chi, 2^\circ)^2$; it is used only at 0.5~m/s or faster, with less than 10$^\circ$ of turning in the window.
+For a measurement $z$, the innovation and update are
+\begin{align}
+  \nu &= \operatorname{wrap}_{180}(z - c), \\
+  K &= \frac{P}{P + R}, \qquad c \leftarrow c + K\nu, \\
+  P &\leftarrow \begin{cases} \dfrac{PR}{P + R} & \text{GPS course,} \\[1ex] \min\!\left(P,\; \max\!\left(\dfrac{PR}{P + R},\; R\right)\right) & \text{compass.} \end{cases}
+\end{align}
+The compass update floors the variance at $R$, because compass error is mostly a bias that does not average out; a compass sample is ignored entirely when $R > 4P$.
+A measurement is rejected if $\nu^2 > 9(P + R)$, a three-sigma gate; after ten consecutive rejections the filter restarts from the latest measurement.
+The filter also restarts if the VIO pose has a gap longer than 2~s or a yaw step faster than 3~rad/s.
+The reported heading accuracy is $\sqrt{P(t)}$; ARGOS holds an outdoor mission when it exceeds 35$^\circ$, and Terra requires it below 30$^\circ$ to admit one.
+
+\section{Summary}
+
+Each autonomy level is a different source of intent feeding one shared pipeline: a dynamic-window planner that only accepts commands it can still stop from, a turning limiter that keeps skid-steer turns gentle, and a feedforward PI velocity controller on VIO and IMU estimates, with every stage stopping on stale input.
+L0 and L2 bypass the planner, which makes them the baselines for measuring what obstacle avoidance adds; L1, L3, and L4 share it.
+Outdoors, a scalar Kalman filter on the VIO-to-north offset fuses compass and GPS course into the heading that turns a geographic bearing into a local goal.
+\todo{Add a figure of a recorded planner trace (candidates and selected arc) from a real run.}
+\todo{Report step responses of the velocity controller on the real rover once it is tuned.}

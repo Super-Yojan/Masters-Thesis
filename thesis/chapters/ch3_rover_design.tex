@@ -1,0 +1,191 @@
+% Chapter 3: Physical design of the rover for NEXT. First draft.
+% Sources: Zorvane VEHICLES.md, SCALE.md, simulator/NEXT.md,
+%   crates/zorvane-vehicle/src/lib.rs, simulator/src/next_competition.rs;
+%   Terra docs/hardware/*.md, crates/terra-actuators/presets/*.json,
+%   docs/superpowers/specs/2026-10-06-bluetooth-actuator-layouts-design.md,
+%   mobile/ios/README.md (phone mounting), docs/MOUNT_CALIBRATION_CHECKLIST.md,
+%   docs/autonomy/turning-policy.md, docs/REAL_ROVER_TUNING.md; Terra issue #21;
+%   "Project ARGOS - One Operator Many Robots" deck (Oct 23, 2026), slides 10, 18, 19, 22;
+%   project notes on the RP2350 motor board (Oct 24, 2026).
+% Dimensions come from CAD files read by the simulator, not from measurements of the
+% built robot. Mass, battery, motor limits and the launcher are open and marked \todo.
+
+\chapter{Rover Physical Design}
+\label{ch:rover}
+
+Chapter~\ref{ch:competition} described the NEXT field and the environment around the rover.
+This chapter describes the rover itself: what the rules ask of its body, the two chassis the project uses, the ball-handling mechanism, the phone mount, the drive electronics, and the planned replacement of the motor bridge.
+The guiding principle is the one from the Introduction: the phone is the robot's only computer, so the rest of the vehicle should be as simple and cheap as the task allows.
+
+All dimensions below are taken from the CAD models as the Zorvane simulator reads them.
+They describe the design, not the built robot, and Section~\ref{sec:rover-open} lists what still has to be measured.
+
+\section{Design requirements from the rules}
+\label{sec:rover-requirements}
+
+Each rule in Table~\ref{tab:next-rules} turns into a physical requirement.
+
+\begin{description}
+\item[Ball handling.] The game object is a regulation tennis ball, about 6.7~cm in diameter and 58~g~\citep{itf2026rules}, and 99 of them start in each penalty box.
+  The rover needs an intake that gathers balls from the turf without stopping for each one, a store to carry several, and a way to put them into a bucket.
+\item[Bucket height.] A ground-level 5-gallon bucket has its rim about 0.34~m above the turf; a raised bucket's rim is about 1.34~m up.
+  Dumping into a ground bucket needs an outlet above 0.34~m that can reach over the rim; scoring in a raised bucket needs a launcher.
+\item[Knocked buckets cost seven points.] The front of the rover must be able to park against a bucket to dump without pushing it over or swallowing it into the intake.
+\item[Distance and time.] The field is 100~m long and the match lasts 90 minutes.
+  At the outdoor GPS mode's 0.3~m/s cap, a single crossing of the pitch takes about five and a half minutes, so drive speed, battery life, and traction on synthetic turf all matter.
+\item[No touching outside the Base.] Every recovery from a fault has to be remote.
+  The drive electronics must fail safe on their own, and the rover must not need a person to reset it after a lost link.
+\item[Tagging.] A vehicle hit by a launched ball is frozen for 15 minutes.
+  The body cannot prevent this, but a smaller profile is a smaller target.
+\end{description}
+
+\section{Two chassis}
+\label{sec:rover-chassis}
+
+The project uses two bodies with the same software.
+Both are differential-drive vehicles, so Terra's controllers, planners, and arbiter run on either; only the geometry, the wheel layout, and the actuator mapping change.
+Table~\ref{tab:rover-bodies} compares them.
+
+\begin{table}[ht]
+\centering
+\caption{The two rover bodies, from their CAD models as used by the simulator. \todo{replace with measured values from the built robots}}
+\label{tab:rover-bodies}
+\begin{tabularx}{\textwidth}{@{}l X X@{}}
+\toprule
+ & Terra development chassis & CrabTrapBot (NEXT rover) \\
+\midrule
+Role & Development and indoor obstacle-avoidance tests & Competition robot for NEXT \\
+Size (W~$\times$~H~$\times$~L) & 0.403~$\times$~0.144~$\times$~0.384~m & 0.607~$\times$~0.614~$\times$~0.601~m \\
+Wheels & Four, radius 45~mm & Four goBILDA 144~mm wheels (radius 72~mm) \\
+Track width & 0.350~m & 0.526~m between tyre centres \\
+Wheelbase & 0.240~m & \todo{measure} \\
+Steering & Differential, skid-steer & Differential, four-wheel skid-steer \\
+Motor outputs & Four DC motors on Fusion HAT motor ports (\texttt{terra-mini} layout) & ESCs on Fusion HAT servo (PWM) pins \\
+Ball handling & None & Intake, internal store, top dumper \\
+Phone mount & Portrait, top edge up, rear camera forward & Landscape, rear camera forward \\
+Mass & \todo{measure; simulator uses 20~kg} & \todo{measure; simulator uses 20~kg} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{The Terra development chassis}
+
+The development chassis is the small rover used for the indoor L3 obstacle-avoidance demonstrations in the Introduction.
+Its CAD model is published in centimetres; reading those units as inches had once made the simulated rover 2.54 times too large, and the model is now scaled from its own unit metadata.
+Its four DC motors connect to the Fusion HAT motor ports, two per side, and the committed \texttt{terra-mini} layout routes left effort to ports M2 and M3 and right effort to M0 and M1, each limited to $\pm$0.4 effort and half power until the drive is calibrated.
+
+\subsection{CrabTrapBot}
+
+CrabTrapBot is the team's NEXT robot, designed in Fusion and modelled in the simulator from its STEP export.
+It is a roughly 0.6~m cube on four goBILDA 144~mm wheels, with a low, open-front intake and a dumper on top.
+Its four wheels skid-steer, so the rover turns by dragging its wheels sideways, and its effective turning track on turf is wider than the 0.526~m geometric track.
+Its propulsion is driven through ESCs on the Fusion HAT's PWM pins rather than through the HAT's motor ports.
+NEXT robots have historically combined an intake with a shooter for balls (Terra issue \#21); CrabTrapBot's design as modelled has the intake and a gravity dumper, and no launcher.
+\todo{Describe the built robot: frame material, motors and gearboxes, ESC model, and whether a launcher is planned for raised buckets.}
+
+\section{Ball handling}
+\label{sec:rover-balls}
+
+CrabTrapBot's name describes its intake.
+Balls enter through a low opening across the front, past inward-swinging flaps that let a ball in but not back out, like the funnel of a crab trap.
+Inside, balls collect in a holding area.
+In the simulator the store holds up to eight balls; when it is full the flaps stay shut and a front bar closes the chassis, so further balls stay on the field rather than jamming the intake.
+\todo{Confirm the real store capacity and the flap mechanism (sprung or gravity).}
+
+An upper front guard sits above the intake opening, at a height that lets balls pass underneath while keeping a bucket outside the chassis.
+This is the design answer to the seven-point knocked-bucket penalty: the rover can drive its front against a bucket to dump without the bucket entering the intake.
+
+Delivery uses a top-mounted dumper.
+At the rover's own goal line, collected balls are moved, one per operator command, from the store into the dumper, which holds two balls about 0.6~m above the turf with its outlet just beyond the front of the chassis.
+The rover then drives into the opponent's half, parks against a ground-level bucket, and dumps when the outlet is within 9~cm of the bucket opening.
+A 0.6~m outlet clears the 0.34~m rim of a ground bucket but not the 1.34~m rim of a raised one, so raised buckets, worth three or six points, need a launcher that the current design does not have.
+In the simulator the dump chute is idealized; panel geometry, hinge torque, and ball contact with the panels are not modelled.
+\todo{Measure the real dumper's outlet height and the success rate of a dump into a ground bucket.}
+
+The load-at-goal step is deliberately an operator action.
+It gives the operator a defined, repeatable moment of attention per scoring cycle, which is useful for the study: it is a natural place to measure how quickly an operator responds when several rovers reach their goal lines at once.
+
+\section{The phone mount}
+\label{sec:rover-mount}
+
+The phone is the rover's only sensor head, so its mount sets what the rover sees.
+On both chassis the rear camera faces forward.
+On the development chassis the phone stands upright in portrait with its screen facing backward; on CrabTrapBot it is mounted in landscape, rolled $\pm$90$^\circ$, and the roll is entered in the app's mounting settings.
+The software keeps separate transforms from the phone's motion axes and from ARKit's camera axes to the rover body, and the compass reference follows whichever phone edge is most horizontal in the saved mount.
+
+A mount calibration procedure records the camera height above the ground and any roll, pitch, and yaw relative to the rover axes, then fits the camera's forward and left offsets from two slow in-place turn passes with the motors disabled.
+The mount must be rigid: any play between phone and chassis appears as pose error.
+\todo{Report the measured camera height and offsets for CrabTrapBot.}
+
+The mount's position also affects the compass.
+Close to the drive motors, the phone's magnetometer read headings with errors of 30--50$^\circ$, which is why Terra fuses visual--inertial yaw, GPS course, and the compass rather than trusting the compass (Section~\ref{sec:env-gps}).
+Moving the phone further from the motors is a physical mitigation worth testing alongside the software one.
+\todo{Test heading error at two or more mount heights on CrabTrapBot.}
+
+\section{Drive electronics}
+\label{sec:rover-electronics}
+
+\subsection{The Pi motor bridge}
+
+Today the phone drives the motors through a Raspberry Pi~4 with a SunFounder Fusion HAT.
+The phone sends normalized actuator commands over Bluetooth Low Energy; the Pi validates them and writes them to the HAT.
+The Pi software is a single compiled ARM64 executable, so no Python installation or source checkout is needed on the rover.
+A configurable layout of up to 16 actuators maps commands to outputs of four kinds: DC motors (signed effort), bidirectional ESCs (reverse, neutral, and forward pulse widths), unidirectional ESCs, and positional servos.
+ESC and servo outputs use 50~Hz pulses, and the DC motor channels use a separate 100~Hz timer group so that the two do not share a timer.
+
+\subsection{Safety in the hardware path}
+
+Because nobody may touch the rover outside the Base, the hardware path must fail safe on its own.
+The Pi enforces, independently of the phone:
+
+\begin{itemize}
+\item an explicit arm step; connecting or pairing never arms the motors;
+\item a 200~ms command watchdog, after which outputs go to their safe state;
+\item a safe state per output kind: zero power for DC motors, a continuous neutral or stop pulse for ESCs (never a zero-width pulse, which some ESCs read as a fault), and a configured safe position for servos;
+\item an external battery cutoff switch that removes motor power and that the Pi cannot override.
+\end{itemize}
+
+Zero effort coasts rather than brakes.
+The Raspberry Pi image used on the rover adds a fallback Wi-Fi hotspot and SSH over the USB-C port, so a technician at the Base can reach the Pi without the field network.
+
+\subsection{Skid-steer turning}
+
+A four-wheel skid-steer rover scrubs its tyres whenever it turns, and turning in place on turf is hard on the drivetrain and on the phone's pose estimate.
+Terra applies a shared turning policy to all managed commands (ARGOS teleoperation and every autonomous level): yaw rate is limited to 0.5~rad/s, turns ramp in and out, the minimum turning radius is 0.5~m, turning in place is off by default, and reverse is limited to 0.15~m/s.
+These are software starting values, not calibrated limits.
+\todo{Calibrate the turning limits on CrabTrapBot on synthetic turf.}
+
+\section{Power}
+\label{sec:rover-power}
+
+The rover carries two energy stores: its drive battery, which also powers the Pi, and the phone's own battery.
+A 90-minute match sets the endurance target for both.
+TerraPhone keeps the screen awake while its scene is active, and continuous camera, depth, GPS, and network use draw the phone battery quickly.
+\todo{Specify the drive battery (chemistry, voltage, capacity) and measure drive and phone endurance over a 90-minute run on turf.}
+
+\section{Planned: a USB microcontroller in place of the Pi}
+\label{sec:rover-rp2350}
+
+The Pi is the last general-purpose computer on the rover, and the phone-as-brain argument says it should go.
+It costs money, needs an operating system image to flash and maintain, boots slowly, and adds a Bluetooth link that can drop.
+The long-term plan is a cheap microcontroller attached to the phone as a USB peripheral.
+
+The chosen part is an RP2350 that enumerates as a USB network device (a CDC-NCM or CDC-ECM Ethernet gadget) on the iPhone's USB-C port.
+The phone would then send wheel commands over that wired network link, which avoids the accessory certification that iOS requires for a raw USB serial device.
+The microcontroller would keep the Pi's safety duties: arming, a watchdog, and safe output states.
+
+Two risks come first.
+The phone-side risk is whether iOS brings up a generic USB network link from such a device at all; this has not been bench-tested.
+The network-side risk is that the board must not advertise a default route or a DNS server, or the phone might send its router traffic over the USB link and lose its connection to ARGOS.
+\todo{Bench-test the RP2350 USB network link on the rover's iPhone before committing the design; report the result here.}
+
+\section{Open measurements}
+\label{sec:rover-open}
+
+Several numbers in this chapter are still design values or simulator placeholders.
+Before any of them appear in results, they must be measured on the built robot:
+mass (the simulator uses 20~kg, unsourced), motor and ESC limits and the resulting top speed (the simulator keeps a 2.29~m/s cap carried over from an earlier model), wheelbase, store capacity, dumper outlet height, phone mount offsets, battery specification and endurance, and the turning limits on turf.
+\todo{Add a photo and a labelled drawing of CrabTrapBot.}
+\todo{Add a bill of materials with costs, to support the low-cost argument.}
+
+The next chapter describes the simulator in which this rover, and a fleet of copies of it, can be driven on a virtual NEXT field.

@@ -1,0 +1,307 @@
+% Chapter 2: The NEXT competition and the experimental environment. First draft.
+% Sources: Zorvane README.md, SCALE.md, VEHICLES.md, simulator/NEXT.md,
+%   simulator/src/next_competition.rs and the intro cutscene script
+%   (which encode the NEXT Competition 2026 Rules, August 7, 2026);
+%   Terra docs (autonomy/README.md, autonomy/outdoor-gps.md, crates/terra-exploration.md,
+%   hardware/*.md, superpowers/specs/2026-10-22-rural-connectivity-reliability.md, issues #21 and #49);
+%   ARGOS packaging/gcp/README.md, docs/design/3d-dashboard.md, crates/argos-core/src/outdoor.rs;
+%   "Project ARGOS - One Operator Many Robots" deck (Oct 23, 2026).
+% Repository state as of Oct 25, 2026. No results are reported here.
+% The rules document itself was not among the sources: every rule below is as the
+% Zorvane simulator states it, and must be checked against the published rules.
+
+\chapter{The NEXT Competition and the Experimental Environment}
+\label{ch:competition}
+
+Chapter~\ref{ch:background} ended with four gaps, the first of which is that the autonomy a mission needs is rarely measured.
+Measuring it needs a mission: a task with a clear goal, a deadline, a fixed arena, and a score that does not depend on who is judging.
+This thesis uses the NEXT Competition 2026 for that purpose.
+This chapter describes the competition (Section~\ref{sec:next-rules}), the hardware, software, and network environment built to take part in it and to run the study on it (Section~\ref{sec:env}), and how that environment stands in for the disaster-response setting that motivates the thesis (Section~\ref{sec:real-world}).
+Section~\ref{sec:next-study} then places the study conditions from the Introduction on the NEXT field.
+
+\section{Why a competition}
+\label{sec:why-competition}
+
+The deployments reviewed in Chapter~\ref{ch:background} are the motivation, but none of them can be repeated.
+A collapsed building does not wait for a second trial, and the conditions in one run cannot be held fixed for the next.
+A competition is the opposite: the field, the objects, the time limit, and the scoring are written down in advance and are the same for every run.
+That makes it a practical middle ground between a laboratory obstacle course, which is repeatable but has no mission, and a real incident, which has a mission but cannot be repeated.
+The DARPA Subterranean Challenge played the same role for underground search~\citep{darpa2021subt}, and its single-supervisor rule is the closest precedent for the one-operator question this thesis asks~\citep{ackerman2021subtoperators}.
+
+NEXT is smaller and cheaper than SubT, and it is held outdoors on a sports field.
+Those two facts matter for this thesis: a low-cost phone-based rover is a realistic entry, and the field is large enough that GPS, a long-range network link, and operator attention all become constraints, while still being safe to test on.
+
+\section{The NEXT Competition 2026}
+\label{sec:next-rules}
+
+NEXT is a two-alliance robot competition played on Field~3, West Campus, George Mason University~\citep{nextrules2026}.
+\todo{Name the organizer, the year the competition started, and the date of the 2026 event, from the published rules or the NEXT project notes.}
+The project's simulator, Zorvane, encodes the \emph{NEXT Competition 2026 Rules} dated August 7, 2026, and the summary below follows that encoding rule by rule.
+It is not a substitute for the rules document, which should be cited directly once it is in hand.
+
+\subsection{Match format}
+
+Two alliances, Red and Blue, play one 90-minute match on a regulation soccer field and swap sides at halftime.
+Each alliance commands its vehicles from its Base, a 20~$\times$~10~ft canopy tent behind its end line (Rule~2.2).
+The Base is the only place a person may touch a vehicle.
+Everything that happens on the field during the match is therefore done by the robots, under remote command from the tent.
+
+\subsection{Field and game objects}
+
+The field is a regulation soccer pitch of approximately 110~$\times$~70~yards, which the simulator takes as 100~$\times$~64~m (Rule~2.1).
+At the start, 99 tennis balls lie in each penalty box (Rule~3.1).
+Twenty 5-gallon buckets stand on the field: ten orange and ten blue, one colour per half, each either at ground level or raised to 1~m (Rule~3.2).
+Red scores in the orange buckets, which stand on Blue's half; Blue scores in the blue buckets on Red's half (Rule~3.2b).
+To score, a team must therefore collect balls near its own end and carry or launch them into the opponent's half.
+
+\subsection{Scoring and penalties}
+
+Table~\ref{tab:next-rules} summarizes the scoring rules as encoded.
+A ball in a ground-level bucket scores one point, or two if the bucket is within 30~m of the opposing Base.
+A raised bucket scores three or six points on the same distance rule.
+A vehicle hit by a ball launched by the other alliance is \emph{tagged} and frozen for fifteen minutes (Rule~4.4).
+Every ball sent out of bounds and every bucket knocked over costs seven points (Rules~4.3 and~5.6).
+
+\begin{table}[ht]
+\centering
+\caption{NEXT Competition 2026 rules as encoded in the Zorvane simulator. Rule numbers are those cited in the simulator source. \todo{check every row against the published rules}}
+\label{tab:next-rules}
+\begin{tabularx}{\textwidth}{@{}l X X@{}}
+\toprule
+Rule & Content & Consequence for the rover \\
+\midrule
+2.1 & Regulation soccer field, about 100~$\times$~64~m & Distances of tens of metres; a straight run across the pitch is 100~m. \\
+2.2 & Each alliance has a Base tent; a person may touch a vehicle only at the Base & All field work is remote; a stuck or faulted rover is lost until it returns or the match ends. \\
+3.1 & 99 tennis balls in each penalty box & Collection is a search-and-gather task, not a single pickup. \\
+3.2 & 10 orange and 10 blue 5-gallon buckets, ground level or raised to 1~m & Delivery targets are spread over the opponent's half. \\
+4 & Ground bucket 1 point (2 within 30~m of the opposing Base); raised bucket 3 (6) & Deeper delivery pays more, and needs a longer trip. \\
+4.3, 5.6 & $-7$ per ball out of bounds and per bucket knocked over & Collisions with targets are costly; precise final approach matters. \\
+4.4 & A vehicle hit by an opposing launched ball is frozen for 15 minutes & A rover can be disabled for a sixth of the match by an outside event. \\
+-- & One 90-minute match, sides swapped at halftime & Endurance and battery life for the whole match. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{What the competition asks of a robot}
+
+Read as a robotics problem, a NEXT match is a loop of five tasks: \emph{search} the field for balls, \emph{collect} them, \emph{return} to a loading point, \emph{travel} to a target in the far half, and \emph{deliver} with a precise final approach.
+Each of those tasks fits a different rung of the autonomy ladder in Table~\ref{tab:intro-levels}.
+Searching a penalty box for balls is a coverage problem (L4).
+Travel across the pitch is a long waypoint drive with occasional obstacles, such as other robots and buckets (L2--L3).
+The final approach to a bucket rim is a short, precise manoeuvre where a mistake costs seven points (L0--L1, or a supervised L3 approach).
+Because one alliance's operators are confined to the Base and may run several vehicles, the match is also a direct test of the one-operator, many-robots setting.
+
+\section{The experimental environment}
+\label{sec:env}
+
+This section describes the environment as it exists in the repositories in October 2026.
+The same environment serves two purposes: it is the team's competition stack, and it is the instrument for the thesis study.
+Figure~\ref{fig:env} shows its parts.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners, align=center, minimum width=2.7cm, minimum height=1.2cm, font=\small},
+  lbl/.style={font=\scriptsize, align=center},
+  >=Stealth]
+  \node[box] (argos) at (0,0) {ARGOS\\operator station\\(Base tent)};
+  \node[box] (router) at (5.2,0) {Zenoh router\\cloud VM\\(TLS, fleet login)};
+  \node[box] (zorvane) at (5.2,-2.6) {Zorvane\\NEXT field twin};
+  \node[box] (phone) at (10.4,0) {TerraPhone\\iPhone on rover\\(Terra Rust core)};
+  \node[box] (pi) at (10.4,-2.6) {Raspberry Pi 4\\+ Fusion HAT};
+  \node[box] (motors) at (10.4,-5.0) {Drive motors\\/ ESCs};
+  \node[box] (gps) at (10.4,2.4) {GPS, compass,\\camera, depth, IMU};
+  \draw[<->] (argos) -- node[lbl, above] {goals, levels,\\stop} node[lbl, below] {status, map,\\video} (router);
+  \draw[<->] (router) -- node[lbl, above] {Zenoh} node[lbl, below] {over TLS} (phone);
+  \draw[<->] (router) -- node[lbl, right] {same topics} (zorvane);
+  \draw[->] (phone) -- node[lbl, right] {wheel effort,\\Bluetooth LE} (pi);
+  \draw[->] (pi) -- node[lbl, right] {PWM} (motors);
+  \draw[->] (gps) -- node[lbl, right] {sensors} (phone);
+\end{tikzpicture}
+\caption{The experimental environment. The operator station and the rover never talk directly: both connect out to one authenticated Zenoh router. Zorvane speaks the same topics as a real rover, so the operator station cannot tell them apart. Planning and control run on the phone; the Pi only applies wheel effort.}
+\label{fig:env}
+\end{figure}
+
+\subsection{The router}
+\label{sec:env-router}
+
+All fleet traffic passes through one Zenoh router running on a small cloud virtual machine.
+Zenoh is a publish--subscribe protocol \todo{cite Zenoh}; every rover, the ARGOS desktop application, and the Zorvane simulator connect \emph{out} to the router over TLS and authenticate with a fleet account.
+All topics share one prefix, and each rover publishes and subscribes under its own numeric rover ID.
+Because every party dials out, neither the operator's laptop nor the phone needs a public address or an open port, which is what lets a phone on a field connect to an operator in a tent without local network setup.
+The same machine hosts an independent observability collector that stores timestamped diagnostic events from the phone, the operator station, and the simulator, and exports them for replay.
+
+The router is not part of the control loop.
+It carries intent (levels, goals, held teleoperation, stop) and telemetry (pose, status, occupancy, video signalling), but every motion decision is checked again on the vehicle.
+Fleet membership allows publishing and subscribing; it does not give per-operator roles, and the vehicle's own runtime checks remain the final command boundary.
+\todo{State whether the phone reaches the router over cellular data or over field Wi-Fi in the NEXT setup, and measure the round-trip latency from Field~3.}
+
+\subsection{The phone as the brain}
+\label{sec:env-phone}
+
+An iPhone rides on the rover and runs TerraPhone, a Swift application around the shared Terra Rust core.
+The phone provides every sensor the autonomy uses: the rear camera and ARKit visual--inertial pose, depth where the handset has it, the Core Motion IMU, GPS, and the compass.
+The Rust core holds state estimation, a rolling local occupancy map (200~$\times$~200 cells at 0.1~m, so 20~$\times$~20~m), the control-authority arbiter, the planners, and velocity control.
+The control loop ticks every 10~ms, and wheel commands go out every fifth tick, at 20~Hz.
+The arbiter is the single owner of motion: teleoperation, assisted teleoperation, the two waypoint levels, supervised exploration, autonomous exploration, and target search all pass through it, and an emergency stop latches until an explicit, healthy reset.
+
+The phone does not run a second planner when it supervises the simulator; in that mode it sends goals and control intent to Zorvane instead.
+Depthless handsets hold any level that needs a map.
+
+\subsection{The Pi motor bridge}
+\label{sec:env-pi}
+
+The phone cannot drive motors directly, so a Raspberry Pi~4 with a SunFounder Fusion HAT acts as a motor bridge.
+The phone sends normalized wheel effort to the Pi over Bluetooth Low Energy; the Pi applies it to motor ports or to PWM outputs for electronic speed controllers (ESCs).
+The Pi runs no autonomy and none of the Rust crates.
+It enforces its own safety independently of the phone: a 200~ms command watchdog, an explicit arm step, a hardware gate, and an external battery cutoff that the Pi cannot override.
+Zero effort coasts, and a dropped enable also coasts; neither brakes.
+Chapter~\ref{ch:rover} describes the hardware in detail, including the planned replacement of the Pi by a microcontroller attached to the phone over USB.
+
+\subsection{The operator station}
+\label{sec:env-argos}
+
+The operator runs the ARGOS desktop application, written in Rust with the GPUI toolkit, on a laptop.
+For NEXT the laptop sits in the alliance's Base, which is where the rules allow the team to be.
+ARGOS shows each rover on one map over satellite imagery with its GPS fix and accuracy, a local occupancy map, first-person video over WebRTC, and the autonomy controls.
+The operator selects Local or Outdoor GPS navigation and an autonomy level, sends goals by clicking the map, arms or disarms the hardware, and has stop and L0 manual control one click away.
+ARGOS binds every non-neutral command to the rover's current run and authority revision, so a stale command from before a takeover or a reset is rejected by the vehicle rather than acted on.
+
+\subsection{Outdoor GPS navigation and heading}
+\label{sec:env-gps}
+
+On a 100~m field the phone's visual--inertial pose alone is not enough to reach a bucket on the other half: it drifts, and it has no notion of where the buckets are in the world.
+Terra therefore has an outdoor GPS mode, in which a geographic goal (latitude and longitude) is converted, at most twice per second, into a local target up to 3~m ahead.
+The local planner and the L3 footprint and braking checks still choose every command, and GPS never modifies the AR pose or the occupancy map.
+Forward speed in this mode is capped at 0.3~m/s.
+
+A mission is admitted only at L3, with armed hardware, fresh visual--inertial feedback, a healthy local map, a GPS fix no older than 3~s with accuracy of 10~m or better (and no worse than the arrival radius), and a heading no older than 2~s with accuracy of 30$^\circ$ or better.
+The default arrival radius is 5~m, configurable from 2 to 20~m, and arrival is confirmed by three distinct fixes inside the radius.
+Any loss of GPS, heading, tracking, map, arming, or authority latches a pause; recovery alone does not resume, and the operator must press Resume in ARGOS.
+ARGOS independently holds an outdoor mission when the reported heading uncertainty exceeds $\pm$35$^\circ$.
+
+Heading turned out to be the weak input.
+The phone's magnetometer, mounted close to the drive motors, read headings with errors of 30--50$^\circ$, so a compass-only heading tripped the uncertainty hold often.
+Since October 2026, Terra fuses three sources: the ARKit yaw carries the heading between corrections, the GPS course over ground (used only at 0.5~m/s or faster and while turning less than 10$^\circ$) gives a tight lock, and the compass only seeds the estimate and never claims to be better than its own reported accuracy.
+In practice, the rover is driven in a straight line for a few seconds at the start of an outdoor run to lock its heading.
+\todo{Measure heading error before and after the fusion on Field~3 and report it in the evaluation chapter.}
+
+\subsection{Frontier exploration}
+\label{sec:env-explore}
+
+Searching a penalty box, or a sector of a disaster site, is a coverage task, and Terra implements it as time-bounded frontier exploration.
+A frontier is a free map cell next to unknown space.
+In the autonomous \texttt{explore} level, the rover repeatedly picks a frontier, scored by expected information gain, and drives to it through the same local planner and safety arbiter as every other level; there is no per-goal approval.
+The run ends when its time budget expires, when no reachable frontier remains, when the operator stops or takes over, or when the map goes stale (older than 0.5~s) or a safety hold fires.
+A blocked frontier is retried and, after three failures, excluded for the rest of the run.
+The supervised level uses the same frontiers but waits for the operator to approve each one before moving.
+Exploration reports elapsed and remaining time, the current target, and the observed free area, and logs each frontier choice.
+
+In the ladder of Table~\ref{tab:intro-levels}, exploration and target search together make up L4: exploration covers ground, target search confirms objects in it.
+\todo{Confirm the ARGOS label for this level (``L4 Explore'') once the operator control is merged, and decide whether exploration is reported as part of L4 or as its own condition.}
+
+\subsection{Zorvane: the NEXT field twin}
+\label{sec:env-zorvane}
+
+Zorvane is the project's simulator, built on the Bevy engine with Avian physics, and since October 2026 its only world is the NEXT field.
+It places a 100~$\times$~64~m pitch on Field~3 at the field's mapped centroid and heading, taken from OpenStreetMap~\citep{osm2026field3}, with an ellipsoid height derived from USGS elevation and the NOAA GEOID18 offset.
+Because of that placement, the simulator publishes a geographic localization report and simulated GPS on the same topics a real phone uses, so ARGOS shows the simulated rover on Field~3 and Terra's outdoor GPS navigation runs on the simulated field unchanged.
+The surroundings (turf, fence, light towers, scoreboard, the two Base tents, and nearby buildings) are generated from OpenStreetMap footprints and given colliders.
+Lighting can be set to noon, overcast, or evening for detector testing.
+
+The game objects are modelled at regulation size: tennis balls of 6.70~cm diameter and 58~g, inside the ITF tolerances~\citep{itf2026rules}, and 5-gallon buckets from a product drawing (0.305~m top diameter, 0.340~m high), ten per half, four of them on 1~m stands, placed by a fixed random seed.
+The default rover is CrabTrapBot, the team's NEXT robot (Chapter~\ref{ch:rover}).
+A full scoring loop is implemented: the rover collects balls through its intake, returns to its own goal line, where collected balls become waiting, loads them one at a time into a two-ball dumper on operator command, parks with the outlet over a ground-level bucket of its alliance's colour, and dumps.
+Balls fall under physics, and only balls that land in the bucket score, with the 1- and 2-point rule.
+Launching, tagging, out-of-bounds penalties, and knocked-bucket penalties are explained in an intro cutscene but not enforced, so raised buckets are out of reach in simulation.
+
+Earlier versions of Zorvane also held the reference disaster-search mission used to develop the autonomy levels, which was removed when the simulator became NEXT-only on October 24, 2026 (Chapter~\ref{ch:simulation}).
+
+\subsection{Logging and measurement}
+\label{sec:env-logging}
+
+Every part of the environment records what it did.
+Terra and Zorvane write a JSONL run log per run containing the mission definition, planner configuration, run identity, every control tick's output, authority requests and changes, mission progress, observed free area, contacts, and near-miss episodes (observed clearance below 0.3~m).
+ARGOS exports operator session logs whose action tokens and teleoperation sequence numbers join to the rover's receipts, so one intervention is not counted twice.
+An \texttt{experiment/status} topic pairs each rover's run clock with UTC, and clock offsets are kept rather than assumed away.
+A trial is labelled as \emph{fixed} (one assigned level) or \emph{adaptive} (operator-chosen), and the assigned condition is recorded separately from the levels actually requested and in effect.
+Truncated recordings are not counted as complete runs, and interaction counts are recorded as workload proxies, not as measured workload.
+
+\section{From the field to the real situation}
+\label{sec:real-world}
+
+NEXT is a game, and a soccer field is not a collapsed building.
+The case for using it rests on a structural match: the problems the field forces on a team are the same problems the deployments in Chapter~\ref{ch:background} ran into, in a form that can be repeated and scored.
+The ARGOS design notes describe the intended thesis experiment as ``real-world, NEXT-style search and rescue,'' with simulation used for algorithm development only.
+Table~\ref{tab:next-mapping} lays out the correspondence.
+
+\begin{table}[ht]
+\centering
+\small
+\caption{How the NEXT environment maps to disaster response, and what each element lets the study measure.}
+\label{tab:next-mapping}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.9cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+In NEXT & In a disaster response & What it tests here \\
+\midrule
+Base tent; vehicles may be touched only there & Command post at the edge of an unsafe zone; responders cannot walk into the hazard to fix a robot (SubT's single Human Supervisor) & Fully remote supervision; a stuck rover is lost until recovered remotely \\
+Tennis balls spread in the penalty boxes & Victims, objects, or areas to be found and reported & Search and coverage (L4), detection, and confirmation by the operator \\
+Buckets in the far half & Delivery or reporting points: casualty collection, supply drop, sensor placement & Long waypoint travel (L2--L3) and a precise final approach \\
+Distance bonus near the opposing Base & Deeper, riskier targets are worth more & Trade-off between reward and the risk of travelling far from the operator \\
+90-minute match & Time-critical response window & Mission success under a deadline; battery endurance \\
+Tagged and frozen for 15 minutes & A robot disabled by debris, a fall, or a lost link & Fleet degradation and operator re-planning around a lost unit \\
+$-7$ for a knocked bucket or a ball out of bounds & Collateral damage and unsafe actions & Safety cost of autonomy errors; when the operator chooses to take over \\
+100~m outdoor field, GPS, a remote link & Large outdoor sites; phone GPS errors of up to 10~m at Surfside & GPS accuracy gates, heading fusion, and continuing an accepted mission through a link outage \\
+Several robots per alliance, one Base & One operator, many robots & Fleet size per operator and attention scheduling \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{The lessons from Chapter~\ref{ch:background}, on the field}
+
+Each recurring lesson from real missions has a concrete counterpart in this environment.
+
+\begin{itemize}
+\item \textbf{Lost link (WTC 2001).}
+  The wireless robot lost at the World Trade Center had no onboard autonomy to recover its link~\citep{murphy2004rescue}.
+  In this environment the rover connects to a cloud router over a link that can drop.
+  Terra's design keeps an accepted L3 waypoint mission running locally across a router outage, while expiring manual intent within its 500~ms lease and never re-arming or resuming on reconnection alone; simulated 120-second router outages were used to check this.
+  On the field this can be tested by cutting the router link mid-mission.
+\item \textbf{Simple control for responders (Fukushima 2011).}
+  Quince had to be easy for first responders to drive~\citep{nagatani2011fukushima}.
+  ARGOS keeps every level one click away, and the study is designed for operators who did not build the rover.
+\item \textbf{One supervisor as the bottleneck (SubT 2021).}
+  NEXT's Base rule recreates SubT's single-supervisor constraint~\citep{ackerman2021subtoperators} at a smaller scale.
+  The ball-collection loop produces a steady stream of moments that need the operator, such as loading at the goal, approving a dump, freeing a stuck rover, which is the attention load the study measures.
+\item \textbf{Shared picture and GPS error (Surfside 2021).}
+  Drone teams at Surfside coordinated through a chat group and saw phone GPS errors of up to ten metres~\citep{murphy2021surfside}.
+  ARGOS shows every rover on one map with its fix and accuracy, and Terra refuses outdoor missions when the fix is worse than 10~m.
+\end{itemize}
+
+\subsection{Where the analogy breaks}
+
+The mapping has limits, and the thesis does not claim more than it supports.
+The field is flat synthetic turf: there is no rubble, no stairs, no dust, and no confined space, so mobility and terrain are not tested.
+A tennis ball is not a person: detecting an optic-yellow ball on green turf is far easier than finding a victim, and the simulator's survivor rule is not a sensor model.
+The network fails because of distance and congestion, not because concrete blocks the radio, and the field has open sky for GPS that a building interior would not.
+The opposing alliance is an adversary that a disaster site does not have, although tagging is a reasonable stand-in for losing robots to events outside the operator's control.
+Finally, the competition rewards points, and a response rewards lives and information; the study therefore reports mission measures (success, time, interventions, time at each level) rather than treating the match score as the result.
+\todo{Decide whether the study runs during the actual NEXT match, in practice sessions on Field~3 with the same rules, or both, and state which results come from which.}
+
+\section{Study conditions on the NEXT field}
+\label{sec:next-study}
+
+The Introduction proposed a study with a \emph{fixed} condition, in which one autonomy level is locked for a run, and a \emph{free} condition, in which the operator switches levels at will and the system logs when, why, and in what context.
+On the NEXT field, the deck's three mission types become concrete tasks: \emph{find a target} becomes locating balls or a specific bucket; \emph{scout a route} becomes reaching the far half; and \emph{cover a sector} becomes a time-bounded exploration of one penalty box.
+The conditions the Introduction lists can each be produced on the field: communication loss by cutting the router link, fleet size by the number of rovers per operator, debris by placing extra obstacles, deadlines by the match clock or a shorter budget, and surprises by tagging or by moving a bucket.
+The same tasks can be run first in Zorvane, against the same ARGOS interface, and then on Field~3.
+
+\todo{Fix the task list, the number of rovers, the trial order and counterbalancing, the workload instrument, and ethics approval before running any human-subject trial.}
+\todo{No trials have been run. Report results only in the evaluation chapter.}
+
+\section{Summary}
+
+The NEXT Competition 2026 gives this thesis a mission with fixed rules, a deadline, a large outdoor field, and a rule that confines the team to its Base.
+The environment built for it connects an operator station and phone-brained rovers through one authenticated cloud router, keeps motion authority on the phone, drives the motors through a Pi bridge, navigates outdoors on GPS with a fused heading, explores frontiers autonomously, and has a simulated twin of the same field on the same topics.
+The structure of a NEXT match maps onto the problems seen in real disaster response, communication loss, a single supervisor, too little or too much autonomy, and the need for one shared picture, while the field leaves out terrain and real victims.
+The next chapter describes the rover that has to play it.

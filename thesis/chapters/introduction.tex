@@ -58,7 +58,7 @@ L0 & Full teleoperation & Nothing on its own; the human controls all motion. & \
 L1 & Assisted teleoperation & The human drives; the rover prevents collisions. & \texttt{assisted\_teleop} \\
 L2 & Waypoint, no avoidance & Drives from A to B along predefined waypoints. & \texttt{waypoint\_direct} \\
 L3 & Waypoint, with avoidance & Navigates from A to B and stops for or avoids obstacles. & \texttt{waypoint} \\
-L4 & Search & Searches an area autonomously and detects targets. & \texttt{target\_search} \\
+L4 & Explore and search & Explores an area autonomously and confirms targets. & \texttt{explore}, \texttt{target\_search} \\
 L5 & Decision making & Decides what is needed now and what is best for the fleet. & \todo{not defined} \\
 \bottomrule
 \end{tabularx}
@@ -162,8 +162,11 @@ The same cost and deployability constraints apply to fire and rescue and to surv
 
 \todo{Confirm chapter list and numbering against the final structure.}
 Chapter~\ref{ch:background} reviews robots in disaster response, levels of autonomy, supervisory control of multiple robots, operator interfaces, communication constraints, and low-cost navigation, and identifies the gaps this thesis addresses.
-Chapter~2 describes the platform: the Terra rover, the phone-as-brain software stack, and the Zorvane simulator.
-Chapter~3 describes onboard autonomy from obstacle avoidance through search.
-Chapter~4 presents the ARGOS operator interface.
-Chapter~5 reports the evaluation.
-Chapter~6 concludes and outlines future work.
+Chapter~\ref{ch:competition} describes the NEXT Competition 2026, the experimental environment built for it, and how that environment maps to disaster response.
+Chapter~\ref{ch:rover} describes the physical design of the rover for the competition.
+Chapter~\ref{ch:simulation} describes the Zorvane simulator, its fidelity, and how it is used.
+Chapter~\ref{ch:autonomy} describes the system architecture and onboard autonomy, with the control equations for each level: the TerraPhone and ARGOS applications, the communication between them, and the autonomy levels from teleoperation through search.
+Chapter~6 describes the recommendation system that proposes actions to the operator.
+Chapter~7 presents the ARGOS operator dashboard.
+Chapter~8 reports the evaluation.
+Chapter~9 concludes and outlines future work.
