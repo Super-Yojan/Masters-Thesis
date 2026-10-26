@@ -13,6 +13,8 @@
 %   crates/terra-types/src/timing.rs         (time constants)
 % plus Terra PR #60 and ARGOS PR #64 (both open on Oct 25, 2026) for L4 Explore.
 % Defaults are software starting values, not calibrated physical limits.
+% Section sec:auto-fusion is transcribed from Terra scripts/plot_sim_rovers.py
+% (uncommitted working copy, Oct 26, 2026) and its Oct 25 technical report.
 % The architecture sections (apps and communication) are still to be written.
 
 \chapter{System Architecture and Autonomy}
@@ -21,7 +23,7 @@
 This chapter describes the software that runs the rover and the mathematics behind each autonomy level.
 Section~\ref{sec:arch} outlines the architecture.
 The rest of the chapter gives the models and control laws in the order a command passes through them: state estimation and mapping (Sections~\ref{sec:auto-state}--\ref{sec:auto-map}), the vehicle model and velocity controller (Section~\ref{sec:auto-control}), the turning policy (Section~\ref{sec:auto-turning}), the local planner (Section~\ref{sec:auto-planner}), and then the intent each level produces (Section~\ref{sec:auto-levels}).
-Section~\ref{sec:auto-outdoor} covers outdoor GPS guidance and heading fusion.
+Section~\ref{sec:auto-outdoor} covers outdoor GPS guidance and heading fusion, and Section~\ref{sec:auto-fusion} a prototype that fuses two rovers' maps.
 
 Every equation in this chapter is taken from the Terra source code, and every default value is the one in the code as of October 2026.
 They are software starting points, chosen in simulation; Chapter~\ref{ch:rover} lists the physical limits that still have to be measured.
@@ -423,10 +425,147 @@ A measurement is rejected if $\nu^2 > 9(P + R)$, a three-sigma gate; after ten c
 The filter also restarts if the VIO pose has a gap longer than 2~s or a yaw step faster than 3~rad/s.
 The reported heading accuracy is $\sqrt{P(t)}$; ARGOS holds an outdoor mission when it exceeds 35$^\circ$, and Terra requires it below 30$^\circ$ to admit one.
 
+\section{Multi-rover map fusion (prototype)}
+\label{sec:auto-fusion}
+
+Every rover in Section~\ref{sec:auto-map} maps in its own frame, and nothing on the rovers combines those maps.
+A first step towards a shared map is a two-rover prototype, \texttt{scripts/plot\_sim\_rovers.py} in the Terra repository, which registers one rover's occupancy grid onto another's and shows the fused result.
+\todo{The script is not yet committed to Terra (checked Oct 26, 2026); this section was checked against the working copy Yojan shared that day. Commit it and pin the revision in the header comment.}
+It is a visualisation and registration tool only.
+It runs as a separate Python process that subscribes over Zenoh, it does not publish the fused grid back, and it does not change either rover's mapper or the arbiter.
+
+\subsection{Inputs and accumulation}
+
+The prototype subscribes to the \texttt{pose} and \texttt{map/occupancy} topics of a reference rover $R$ and a source rover $S$ (by default IDs 0 and 1), and estimates the rigid transform that carries $S$'s map into $R$'s frame.
+The occupancy packet is the one Terra already publishes (Section~\ref{sec:auto-map}): values $-1$ for unknown and $0$--$100$ otherwise, rows along world $+y$, origin at the minimum cell corner, and the same threshold $P \ge 65$ for occupied.
+The pose is drawn on the plot but is not a registration measurement; the transform comes from map structure alone.
+
+Each published grid is a rolling window, so cells fall out of it as the rover moves.
+The prototype keeps a persistent map per rover, keyed by integer lattice coordinates.
+A cell at column $j$ and row $k$ of a grid with origin $(o_x, o_y)$ and resolution $r$ has key
+\begin{equation}
+  (i_x, i_y) = \left(\operatorname{round}(o_x / r) + j,\; \operatorname{round}(o_y / r) + k\right).
+\end{equation}
+This is exact for Terra's mapper, which only ever shifts its origin by whole cells.
+The newest known value at a key replaces the old one, unknown cells never erase evidence, and older or repeated map revisions are ignored.
+A change of run ID clears both maps and the current alignment.
+When a persistent map would exceed $5 \times 10^5$ cells it is coarsened by an integer factor $s = \max(2, \lceil\sqrt{N_x N_y / 5 \times 10^5}\,\rceil)$, keeping the maximum value in each bin, which favours obstacles.
+
+\subsection{Registration}
+
+Registration uses only occupied cells.
+Their centres form point sets $P_R$ and $P_S$.
+Each set is downsampled to one point per voxel of width $\max(0.25~\text{m}, 2r)$ and capped at 250 points, so that long walls do not dominate.
+
+\paragraph{Global search.}
+Before an alignment exists, and then every 30~s, the prototype sweeps yaw $\theta$ in $10^\circ$ steps over the full circle.
+At each $\theta$, every pair of a reference point and a rotated source point votes for a translation,
+\begin{equation}
+  \mathbf{d}_{ij} = \mathbf{p}_{R,i} - R(\theta)\,\mathbf{p}_{S,j},
+\end{equation}
+quantised into bins of width $b = \max(0.25~\text{m}, 3r)$.
+The two fullest bins at each yaw become candidates.
+A candidate is scored by nearest-neighbour matching within $\rho = \max(0.35~\text{m}, 4r)$, with each reference point matched at most once.
+With $M$ unique matches, $B$ occupied 1~m bins containing match midpoints, and RMS match distance $e$, candidates are ranked by larger $M$, then larger $B$, then smaller $e$, then more votes.
+This is an exhaustive discrete search, not RANSAC.
+
+\paragraph{Refinement.}
+The best candidate, or between global searches the current alignment, seeds point-to-point ICP on up to 6\,000 occupied points per map.
+Each iteration pairs every transformed source point with its nearest reference point, drops pairs farther than $\max(0.65~\text{m}, 6r)$, trims the rest to the 75th percentile of distance, and requires at least eight pairs.
+The rotation is the least-squares solution from the SVD of
+\begin{equation}
+  H = \sum_i (\mathbf{x}_i - \bar{\mathbf{x}})(\mathbf{y}_i - \bar{\mathbf{y}})^{\mathsf{T}},
+\end{equation}
+and the translation aligns the centroids.
+ICP stops after 35 iterations or when the update falls below $10^{-4}$~m and $10^{-5}$~rad.
+The refined transform is then rescored on the downsampled sets at radius $\rho$.
+
+\subsection{Scoring and acceptance}
+
+With precision $P_m = M / N_S$ and recall $Q_m = M / N_R$ over the downsampled point counts, the prototype computes a confidence
+\begin{equation}
+  C = \operatorname{clip}_{[0,1]}\!\left(0.55\,F_1 + 0.20\min(1, B/8) + 0.20\,e^{-e/\rho} + 0.05\,A_K\right),
+  \qquad F_1 = \frac{2 P_m Q_m}{P_m + Q_m},
+\end{equation}
+where $A_K$ is the mean agreement $1 - |c_R - c_S|/100$ over cells known in both maps, computed only during a global search.
+It also computes an evidence score
+\begin{equation}
+  I = \operatorname{clip}_{[0,1]}\!\left(0.40\min(1, \tfrac{M}{40}) + 0.25\min(1, \tfrac{B}{8}) + 0.20\min(1, \tfrac{\min(N_R, N_S)}{100}) + 0.15\min(1, \tfrac{N_{\text{ICP}}}{50})\right),
+\end{equation}
+and their product $J = CI$.
+The weights are hand-chosen.
+$C$ is a ranking score, not a calibrated probability that the alignment is correct, and the thesis does not use it as one.
+
+A candidate is eligible if $M \ge 6$, $B \ge 2$, $e \le 0.45$~m, $C \ge 0.18$ and $I \ge 0.025$.
+The first eligible candidate becomes the incumbent.
+A later one replaces it only if $C$ rises by more than $10^{-4}$, $I$ does not fall, and $J$ rises.
+A rejected candidate leaves the current fused map in place.
+Alignment is attempted at most every 2~s.
+
+\subsection{Fusion}
+
+The fused grid is recomputed from the two persistent maps under the incumbent transform, never from the previous fused grid, so no observation is counted twice.
+It covers the union of both extents at the finer input resolution, coarsened if needed to stay within $5 \times 10^5$ cells.
+Each known value $c$ becomes $p = \operatorname{clip}(c/100, 0.01, 0.99)$, and the two maps are combined in log odds,
+\begin{equation}
+  \ell_F = \operatorname{clip}\!\left(\sum_{m \in \{R, S\}} \ln\frac{p_m}{1 - p_m},\; \pm 4\right),
+  \qquad P_F = \operatorname{round}\!\left(\frac{100}{1 + e^{-\ell_F}}\right),
+\end{equation}
+mirroring the single-rover update and its clamp.
+A cell unknown in both maps stays $-1$.
+The sum treats the two rovers' observations of a cell as independent evidence.
+Fusion runs at most every 0.75~s and the plot at most at 2~Hz.
+
+\subsection{Validation so far}
+
+In Zorvane all rovers report maps in one shared world frame (Chapter~\ref{ch:simulation}), so the correct transform between two simulated rovers is the identity.
+To test registration on simulated data the prototype therefore applies a known transform $A = (2.0~\text{m}, -1.5~\text{m}, 23^\circ)$ to the source map by default and reports the residual between the estimate and $A^{-1}$; \texttt{--no-test-transform} disables it for maps that are genuinely in different frames, as two phones' VIO frames are.
+A built-in self-test registers a synthetic asymmetric $24 \times 20$~m layout at 0.1~m under three known transforms and passes if each alignment is eligible, each residual is within 0.30~m and $4^\circ$, and the fused map keeps at least 70\% of the reference map's known cells.
+Table~\ref{tab:fusion-selftest} gives the result of one run.
+
+\begin{table}[ht]
+\centering
+\begin{tabular}{rrrrrr}
+\toprule
+\multicolumn{3}{c}{Applied transform} & \multicolumn{2}{c}{Residual} & \\
+\cmidrule(lr){1-3}\cmidrule(lr){4-5}
+$x$ (m) & $y$ (m) & yaw & translation (m) & yaw & $M$ \\
+\midrule
+2.0 & $-1.5$ & $23^\circ$ & 0.028 & $0.97^\circ$ & 160 \\
+$-3.0$ & 2.0 & $-31^\circ$ & 0.035 & $0.60^\circ$ & 159 \\
+0.8 & 1.2 & $0^\circ$ & 0.199 & $0.01^\circ$ & 170 \\
+\bottomrule
+\end{tabular}
+\caption{Prototype self-test on synthetic data (run Oct 26, 2026). $M$ is the number of unique occupied-cell matches after ICP.}
+\label{tab:fusion-selftest}
+\end{table}
+
+The rotated cases recover the transform to a few centimetres.
+The pure translation, which should be the easiest, is the worst: ICP converges two cells short along $x$ with an RMS match distance of only 0.01~m, because points on long axis-aligned walls match exactly whatever their position along the wall, and the 75th-percentile trim discards the wall ends that would correct it.
+It still passes, but with only 0.10~m to spare.
+The coverage check passes for any transform, since the reference map alone supplies its known cells, so it guards against coarsening losses and not against a wrong merge.
+This is a software check on synthetic data, not evidence of performance on real maps.
+\todo{Report registration residuals from the Zorvane two-rover run with the test transform, and from two phones in one room with \texttt{--no-test-transform} against OptiTrack or tape-measured ground truth.}
+
+\subsection{Limitations}
+
+\begin{itemize}
+  \item \textbf{Uncalibrated scores.} $C$, $I$ and $J$ rank candidates; none is a probability of a correct merge.
+  \item \textbf{Frame stability.} Accumulation assumes each rover's frame does not jump. An ARKit relocalisation or VIO reset without a new run ID would corrupt that rover's persistent map.
+  \item \textbf{Ratcheting incumbent.} A new alignment, local or global, replaces the incumbent only if its confidence is strictly higher. A wrong early merge with a high score is therefore kept until the run changes, and since the incumbent was scored on smaller maps, a correct transform rescored on grown maps can be rejected because recall over the larger point sets fell.
+  \item \textbf{Static world.} Old observations persist until the cell is seen again, and max-coarsening keeps stale obstacles.
+  \item \textbf{Ambiguity.} Translation voting can lock onto a wrong but plausible alignment in symmetric or repetitive spaces such as corridors; the spatial-spread term reduces this but does not remove it.
+  \item \textbf{Two rovers.} It registers one source to one reference. It is not a multi-robot pose graph and has no loop closure.
+  \item \textbf{Not on the robots.} The fused map reaches no rover, planner, or ARGOS. Exploration still runs on each rover's own map, so two rovers can explore the same area.
+\end{itemize}
+
+Publishing the fused map back, so that the frontier explorer of Section~\ref{sec:auto-levels} can avoid space another rover has already covered, is future work.
+
 \section{Summary}
 
 Each autonomy level is a different source of intent feeding one shared pipeline: a dynamic-window planner that only accepts commands it can still stop from, a turning limiter that keeps skid-steer turns gentle, and a feedforward PI velocity controller on VIO and IMU estimates, with every stage stopping on stale input.
 L0 and L2 bypass the planner, which makes them the baselines for measuring what obstacle avoidance adds; L1, L3, and L4 share it.
 Outdoors, a scalar Kalman filter on the VIO-to-north offset fuses compass and GPS course into the heading that turns a geographic bearing into a local goal.
+A separate two-rover prototype registers one rover's occupancy grid onto another's by occupied-cell voting and ICP and fuses them in log odds, but only for display; no rover uses the fused map yet.
 \todo{Add a figure of a recorded planner trace (candidates and selected arc) from a real run.}
 \todo{Report step responses of the velocity controller on the real rover once it is tuned.}
