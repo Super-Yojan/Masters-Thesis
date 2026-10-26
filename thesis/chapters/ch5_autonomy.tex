@@ -11,11 +11,17 @@
 %   crates/terra-exploration/src/*.rs        (frontier exploration)
 %   crates/terra-autonomy/src/outdoor.rs, outdoor/heading.rs (GPS guidance, heading fusion)
 %   crates/terra-types/src/timing.rs         (time constants)
-% plus Terra PR #60 and ARGOS PR #64 (both open on Oct 25, 2026) for L4 Explore.
+% plus Terra PR #60 and ARGOS PR #64 (merged Oct 25, 2026) for L4 Explore.
+% Updated Oct 26, 2026 against Terra main 0110519 and ARGOS main 552c1e7:
+%   crates/terra-runtime/src/ground.rs        (level ground plane, Terra #66; mount floor, #68)
+%   crates/terra-types point_capture, terra-mapping label_depth (Terra #64, #67)
+%   crates/terra-mobile/src/actuators.rs      (Rust actuator routing in shadow mode, Terra #63)
+%   crates/terra-autonomy/src/task.rs, arbiter/task.rs, docs/autonomy/TASK.md (L5, Terra #70)
+%   ARGOS #69 (focused subscriptions), #72/#83 (Capture 3D, Live 3D), #85 (Task L5 panel).
 % Defaults are software starting values, not calibrated physical limits.
 % Section sec:auto-fusion is transcribed from Terra scripts/plot_sim_rovers.py
 % (uncommitted working copy, Oct 26, 2026) and its Oct 25 technical report.
-% The architecture sections (apps and communication) are still to be written.
+% Section sec:arch is a first outline; the topic contract and logging still need detail.
 
 \chapter{System Architecture and Autonomy}
 \label{ch:autonomy}
@@ -31,9 +37,42 @@ They are software starting points, chosen in simulation; Chapter~\ref{ch:rover} 
 \section{Architecture}
 \label{sec:arch}
 
-\todo{Write the architecture sections: TerraPhone (Swift) around the Terra Rust core via UniFFI; ARGOS (Rust, GPUI); the Zenoh topic contract; run identity and authority revisions; the Pi Bluetooth protocol; logging. Keep implementation detail for an appendix.}
+The rover software has two layers on the phone.
+TerraPhone is a Swift application.
+It owns everything that needs an Apple framework: the ARKit session and depth frames, Core Motion, GPS and compass, the Bluetooth link to the motor bridge, WebRTC first-person video, and, for L5, the on-device language model (Section~\ref{sec:auto-l5}).
+Below it is the Terra core, a set of Rust crates compiled for iOS and called through UniFFI bindings.
+The same crates are linked by the Zorvane simulator (Chapter~\ref{ch:simulation}), so the autonomy that runs on the phone is the autonomy that runs in simulation.
+An Android client for the same Bluetooth actuator protocol also exists, but the phone used in this thesis is an iPhone.
 
-For this chapter one property of the architecture matters: all motion authority sits in one place, the \emph{arbiter} in the Terra core on the phone.
+\subsection{Where the control loop belongs}
+\label{sec:arch-boundary}
+
+The project follows one rule for splitting work between the two languages: Swift gathers sensor data, talks to the hardware and the network services that only Apple's frameworks provide, and builds the occupancy input from depth; the control loop, safety gating, mode and tick policy, and actuator routing belong in Rust.
+Rust code is shared with the simulator and covered by its tests, so a rule that lives there is exercised in both places; a rule in Swift runs only on a phone.
+
+In October 2026 the code is part of the way there.
+The arbiter, planners, velocity controller and level logic are in Rust, but TerraPhone still ticks the loop and still holds the motor gates and the mapping from wheel effort to actuator outputs.
+The first migration step (Terra PR~\#63) makes Rust route each tick's efforts through the rover's drive profile as well and return the resulting actuator frame; TerraPhone still sends its own frame and logs any tick where the two differ.
+This \emph{shadow mode} lets the Rust routing be checked against the Swift routing on real drives before it takes over.
+\todo{Report how many shadow-mode mismatches were logged on real drives, then switch the actuator output to the Rust frame and describe the final split.}
+
+Two fixes from the same period show why the loop's timing is delicate on a phone.
+ARKit delivered frames on the same queue as the 100~Hz control tick, depth mapping and point-cloud publishing, so frames that arrived during a step waited holding their \texttt{ARFrame}, and ARKit warned that eleven frames were retained (fixed in Terra PR~\#65).
+A semaphore wait between the high-priority frame thread and a utility-priority capture queue was a priority inversion (fixed in Terra PR~\#61).
+Neither changes the mathematics below, but both affect how fresh the inputs to it are.
+
+\subsection{Fleet communication}
+\label{sec:arch-topics}
+
+Every rover publishes and subscribes under its own numeric identifier below one shared Zenoh prefix (Chapter~\ref{ch:competition}).
+Light telemetry, such as pose, localization, goal and autonomy status, hardware state, and outdoor navigation, is received for every rover.
+Heavy topics, the occupancy grid, the point cloud and depth frames, are subscribed only for the rover the operator has selected (ARGOS PR~\#69), so the router does not forward every rover's map to the operator station.
+Requests that are not motion, such as a point-cloud capture request, go to their own inbox outside the motion-authority path, and bulk replies are sent at background priority and dropped rather than queued when the link is congested.
+\todo{Describe run identity and authority revisions, the Pi Bluetooth protocol and logging in an appendix, and list the topic contract.}
+
+\subsection{Motion authority}
+
+For the rest of this chapter one property of the architecture matters: all motion authority sits in one place, the \emph{arbiter} in the Terra core on the phone.
 Operator commands, waypoint goals, and autonomous goals are all \emph{intents}.
 The arbiter turns the intent of the active level into a velocity command, checks it, and hands it to the velocity controller.
 The control loop ticks every 10~ms; wheel commands are sent to the motor bridge every fifth tick, at 20~Hz; the local planner works on a 0.1~s step.
@@ -78,6 +117,7 @@ For each depth frame, every sampled pixel $(u, v)$ with depth $z$ is back-projec
   \mathbf{r}_c = \left(\frac{(u - c_x) z}{f_x},\; \frac{(v - c_y) z}{f_y},\; z\right),
 \end{equation}
 rotated into the world frame, and classified as an obstacle hit if its endpoint lies between 0.15 and 2.0~m above the ground plane, within 15~m of the camera.
+Each pixel gets one of six labels: free, obstacle, overhead, out of range, outside the band, or no return; the grid update below uses the same classifier, so the labels and the map evidence cannot disagree.
 The cells along the ray, found by Bresenham traversal, are marked free, and the endpoint cell is marked occupied for a hit.
 Each cell is updated at most once per frame, with obstacle evidence taking precedence:
 \begin{equation}
@@ -86,6 +126,34 @@ Each cell is updated at most once per frame, with obstacle evidence taking prece
 The map published to the planner stores $P = 100\,\sigma(\ell) = 100 / (1 + e^{-\ell})$ for observed cells and $-1$ for unobserved ones.
 A cell is \emph{occupied} if $P \ge 65$, that is if $\ell \ge \ln(65/35) \approx 0.62$, \emph{free} if $0 \le P < 65$, and \emph{unknown} otherwise.
 The asymmetric increments mean that one hit outweighs two misses, so a thin obstacle seen intermittently stays in the map.
+
+\subsection{The ground plane}
+\label{sec:auto-ground}
+
+Every height in the classifier is measured from a ground plane, so an error in the plane becomes an error in the map.
+The plane is level, with normal along world up, and lies a vertical distance $h_c$ below the camera:
+\begin{equation}
+  z_{\text{ground}} = z_{\text{cam}} - h_c,
+\end{equation}
+so it follows the terrain's elevation as the rover moves, but never its tilt.
+The body's up axis is used only to reject a tipped-over rover.
+An earlier version used the body's up axis as the plane normal.
+A labelled point capture on a flat floor showed the body axis about 16$^\circ$ off gravity because of mount pitch and roll, so the plane cut through the floor: on one side, floor beyond about 2~m was labelled obstacle, and on the other, walls up to 2.5~m high read as free (fixed in Terra PR~\#66).
+
+The camera height $h_c$ comes from the mount calibration (Chapter~\ref{ch:rover}) when one with a plausible height (0.1 to 3~m) is saved, as a robot model would use a fixed camera transform (Terra PR~\#68).
+Without a calibration, $h_c$ is taken once from the first ARKit horizontal plane of at least 0.4~m$^2$ whose height stays within 3~cm for 1~s.
+That fallback is fragile: if the app is started with the phone in hand and the phone is mounted afterwards, $h_c$ is the hand height and the plane sinks below the real floor.
+\todo{Repeat the flat-floor point capture with the level, mount-calibrated plane on CrabTrapBot and report the fraction of floor points labelled obstacle before and after.}
+
+\subsection{Inspecting the classifier}
+\label{sec:auto-capture}
+
+The ground-plane fault was found with a diagnostic built for that purpose.
+On request from ARGOS, the rover sends every depth pixel, projected to world coordinates and labelled by the rules above, as binary frames (Terra PR~\#64, ARGOS PR~\#72).
+A \emph{Capture 3D} records 10~s at 1~Hz, about 640~KB per frame, and ARGOS saves it as a PLY file coloured by label.
+A \emph{Live 3D} stream sends decimated frames at up to 5~Hz for as long as ARGOS renews a lease, and ARGOS draws the newest frame on the map under the rover (Terra PR~\#67, ARGOS PR~\#83); ARGOS uses a 6~s lease renewed every 2~s, 2~Hz, and every third pixel in each direction, about 70~KB per frame.
+Decimation scales the camera intrinsics so that every ray kept is unchanged.
+The always-on thinned point cloud that the phone used to stream is now sent only while a capture runs.
 
 \section{Vehicle model and velocity control}
 \label{sec:auto-control}
@@ -340,8 +408,8 @@ Progress is reported as observed free area and explored fraction,
   A_{\text{free}} = N_{\text{free}}\,r^2, \qquad \eta = \frac{N_{\text{known}}}{N_{\text{cells}}}.
 \end{equation}
 The run ends when $t \ge T_b$, when $\mathcal{F}$ is empty, on a stop or takeover, or on a sustained stale map or safety hold.
-Terra PR~\#60, open at the time of writing, gives the map-stale ending a 3~s grace while still holding motion from the first stale tick.
-In ARGOS this level is offered as ``L4 Explore'' with a 3, 5, or 10~minute budget (ARGOS PR~\#64, open at the time of writing).
+The map-stale ending has a 3~s grace, while motion is still held from the first stale tick (Terra PR~\#60).
+In ARGOS this level is offered as ``L4 Explore'' with a 3, 5, or 10~minute budget (ARGOS PR~\#64).
 
 \subsection{L4: target search}
 
@@ -354,10 +422,41 @@ with no gap or age above $\tau_{\text{fresh}}$; a disagreeing observation restar
 The defaults are $N = 3$, $c_{\min} = 0.8$, $d_{\text{agree}} = 1$~m, $\tau_{\text{span}} = 0.5$~s, and $\tau_{\text{fresh}} = 0.5$~s.
 These are software thresholds, not a calibrated detector model.
 
-\subsection{L5}
+\subsection{L5: task autonomy}
+\label{sec:auto-l5}
 
-L5, in which the robot decides what the fleet needs, is not implemented.
-Chapter~6 discusses the recommendation system that would sit between the operator and such decisions.
+L5 was defined as the level at which the robot decides what is needed.
+Its first implementation is narrower: one rover takes a task in plain language from the operator and decides its own waypoints for it (Terra PR~\#70, ARGOS PR~\#85, merged October 25, 2026).
+A language model running on the phone makes the decisions; the Terra core keeps every safety and motion rule.
+\textbf{This level has not been run on a phone.}
+At the time of writing TerraPhone with the model runner had not been built and run on an iOS~26 device, the ARGOS task panel had not been exercised against a live rover, and no task has been completed end to end.
+Everything below describes the implemented design, not observed behaviour.
+
+\paragraph{Loop.}
+The operator selects L5 in ARGOS and types a task of at most 500 characters, with a time budget (default 300~s, at most 3600~s) and a limit on model calls (default 20, at most 100).
+The arbiter then repeats one step until the task ends:
+\begin{enumerate}
+\item It builds a prompt from the occupancy map: the whole local map reduced to a symbolic grid of 1~m cells (a cell is occupied if any of its 0.1~m cells is occupied, free only if all of them are observed and free, and unknown otherwise), up to six reachable frontiers, up to eight obstacle blobs and eight landmarks, each with an identifier, the rover's pose, and the six most recent steps of history.
+\item The phone runs the model on that prompt. The rover holds while the model thinks; the model runs off the control queue, so the 10~ms tick and the 20~Hz motor output do not wait for it.
+\item The arbiter parses the reply, which must be one JSON object choosing one of four decisions: \texttt{go} (up to five waypoints, given as identifiers or local points), \texttt{ask\_operator} (a question shown in ARGOS; the rover waits for the answer), \texttt{done}, or \texttt{fail}.
+\item Each waypoint is snapped to observed, footprint-clear free space within 0.5~m, and must have an A* route (Section~\ref{sec:auto-planner}) before the waypoint follower accepts it. Accepted waypoints are driven exactly as in L3.
+\end{enumerate}
+A reply that contains a speed, an effort or a servo command is rejected: the model chooses \emph{where}, never \emph{how}.
+A waypoint whose route stays blocked for 4~s, or that is not reached within 90~s, is abandoned and the model is asked again.
+A query with no answer after 90~s counts as a failed step, and three consecutive failed steps (invalid replies, timeouts or model errors) fail the task.
+The operator can answer a question or add guidance at any time, which replaces the current plan, and can cancel; a stop, a level change or a goal cancel also ends the task.
+
+\paragraph{Model.}
+The model runner uses Apple's on-device Foundation Models framework (iOS~26 or later), with text input only.
+The level is offered to ARGOS only while the phone reports that a model is available.
+The runner sits behind a small protocol so that another on-device model, for example a vision--language model run through MLX or llama.cpp, can replace it.
+\todo{Run L5 end to end on an iOS~26 iPhone, first in Zorvane and then on CrabTrapBot, and report model latency per step, the fraction of replies rejected and why, and task completion for a small set of fixed tasks.}
+
+\paragraph{Relation to the rest of the ladder.}
+L5 adds a decision maker above L3, not a new controller: the A* check, the local planner of Section~\ref{sec:auto-planner}, the turning limiter and every safety hold apply unchanged.
+Because the model only proposes waypoints, a bad reply costs time, not safety.
+The pilot study does not use L5.
+Deciding what the \emph{fleet} needs, the original meaning of the level, is not implemented; Chapter~6 discusses the recommendation system that would sit between the operator and such decisions.
 
 \begin{table}[ht]
 \centering
@@ -374,6 +473,7 @@ L2 Direct & Pursuit, Eq.~\eqref{eq:pursuit}, to goal & Bypassed & Sets goal; wat
 L3 Waypoint & Pursuit along A* route & Eq.~\eqref{eq:planner-cost} & Sets goal \\
 L4 Explore & Pursuit to $f^\ast$, Eq.~\eqref{eq:frontier} & Eq.~\eqref{eq:planner-cost}, $H = 1$~s & Sets budget \\
 L4 Search & Pursuit to frontier in bounds; confirmation rule & Eq.~\eqref{eq:planner-cost} & Sets area, class, budget \\
+L5 Task & Pursuit along A* route to model-chosen waypoints & Eq.~\eqref{eq:planner-cost} & Gives task; answers questions \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -564,7 +664,9 @@ Publishing the fused map back, so that the frontier explorer of Section~\ref{sec
 \section{Summary}
 
 Each autonomy level is a different source of intent feeding one shared pipeline: a dynamic-window planner that only accepts commands it can still stop from, a turning limiter that keeps skid-steer turns gentle, and a feedforward PI velocity controller on VIO and IMU estimates, with every stage stopping on stale input.
-L0 and L2 bypass the planner, which makes them the baselines for measuring what obstacle avoidance adds; L1, L3, and L4 share it.
+L0 and L2 bypass the planner, which makes them the baselines for measuring what obstacle avoidance adds; L1, L3, L4, and L5 share it.
+L5 puts an on-phone language model above L3 to choose waypoints for a plain-language task, with every waypoint checked by A* and driven on the L3 path; it is implemented but untested on hardware.
+The occupancy map's ground plane is level and placed at the mount-calibrated camera height, a correction found by inspecting labelled point clouds streamed to ARGOS.
 Outdoors, a scalar Kalman filter on the VIO-to-north offset fuses compass and GPS course into the heading that turns a geographic bearing into a local goal.
 A separate two-rover prototype registers one rover's occupancy grid onto another's by occupied-cell voting and ICP and fuses them in log odds, but only for display; no rover uses the fused map yet.
 \todo{Add a figure of a recorded planner trace (candidates and selected arc) from a real run.}

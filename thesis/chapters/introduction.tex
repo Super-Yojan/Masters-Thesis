@@ -59,7 +59,7 @@ L1 & Assisted teleoperation & The human drives; the rover prevents collisions. &
 L2 & Waypoint, no avoidance & Drives from A to B along predefined waypoints. & \texttt{waypoint\_direct} \\
 L3 & Waypoint, with avoidance & Navigates from A to B and stops for or avoids obstacles. & \texttt{waypoint} \\
 L4 & Explore and search & Explores an area autonomously and confirms targets. & \texttt{explore}, \texttt{target\_search} \\
-L5 & Decision making & Decides what is needed now and what is best for the fleet. & \todo{not defined} \\
+L5 & Decision making & Takes a task in plain language and decides its own next waypoints; fleet-level decisions remain future work. & \texttt{task} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -153,7 +153,8 @@ The planned contributions are:
 
 The thesis treats a homogeneous fleet of Terra ground rovers supervised by one operator.
 Heterogeneous fleets, aerial vehicles, and multiple cooperating operators are outside its scope.
-The main experimental scope is L0--L3; L4 is evaluated where the platform supports it, and L5 is discussed as future work.
+The main experimental scope is L0--L3; L4 is evaluated where the platform supports it.
+L5 exists as a single-rover prototype in which an on-phone language model chooses waypoints for an operator's task (Section~\ref{sec:auto-l5}); it has not been tested on hardware and is not a study condition, and fleet-level decision making is future work.
 Disaster response is the motivating application.
 The same cost and deployability constraints apply to fire and rescue and to surveillance, but this thesis does not evaluate those settings separately.
 
