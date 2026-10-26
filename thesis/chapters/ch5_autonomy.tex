@@ -50,6 +50,7 @@ Geographic headings are in degrees, clockwise from true north.
 
 The velocity controller needs the rover's forward speed and yaw rate.
 The phone has no wheel encoders in the loop, so Terra estimates them from ARKit's visual--inertial odometry (VIO) and the Core Motion IMU.
+An independent benchmark found ARKit the most stable and accurate of four commercial VIO systems~\citep{kim2022benchmark}, so its pose is a reasonable stand-in for wheel odometry.
 The latest VIO sample, at time $t_0$, gives an orientation quaternion $\mathbf{q}_0$ and a world-frame velocity $\mathbf{v}_0$.
 Because VIO arrives late and at a lower rate than the IMU, the estimator replays the retained IMU samples $(\mathbf{a}_k, \boldsymbol{\omega}_k)$ from $t_0$ to the current time.
 For each interval $\delta_k$,
