@@ -160,8 +160,10 @@ Phones have been used in robotics as teleoperation clients, communication links,
 \todo{Cite prior smartphone-based robots and phone-as-controller platforms.}
 Using the phone as the vehicle's only onboard computer depends on how well it estimates its own motion.
 Visual--inertial odometry (VIO) fuses camera and IMU data for pose; Delmerico and Scaramuzza benchmarked monocular VIO algorithms on flying-robot hardware~\citep{delmerico2018benchmark}.
-\todo{Add the phone VIO references from the literature review (Kim 2022; Marino 2022) with full details.}
 On iOS, ARKit provides camera pose and, on supported devices, depth.
+Kim et al.\ compared four off-the-shelf proprietary VIO systems (Apple ARKit on an iPhone~12 Pro Max, Google ARCore, the Intel RealSense T265, and the Stereolabs ZED~2) on indoor and outdoor sequences, including a vehicle drive of about 3~km, and found ARKit the most stable and accurate of the four~\citep{kim2022benchmark}.
+This result supports using the iPhone's ARKit pose as the rover's primary localization source.
+\todo{Add the second phone VIO reference from the literature review (Marino 2022) with full details.}
 On Android, ARCore provides motion tracking that combines visual feature points with the IMU, and depth maps from the main RGB camera on supported devices~\citep{arcore2026fundamentals}.
 A single Rust library can serve both platforms through UniFFI, which generates Swift and Kotlin bindings~\citep{uniffi2026}.
 
