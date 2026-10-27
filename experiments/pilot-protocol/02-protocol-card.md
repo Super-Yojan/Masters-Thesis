@@ -17,6 +17,7 @@ it is a draft default so the card can be dry-run, not a decision.
 | Training | One 5 min practice per level in Zorvane before the first trial, same script for everyone. | |
 | Instructions | Written, read aloud verbatim. Fixed: "Use only the level shown. Stop or take over only for safety." Free: "Use any level, as you see fit." | |
 | Workload | Raw NASA-TLX (6 scales, unweighted) after each condition. | **Q10** instrument |
+| Recommendations | Off in every pilot condition: no ARGOS recommendations (thesis Ch6) and no LLM level suggestions. Decided (Yojan, 2026-10-27). | |
 | Disturbances | None in the pilot: no injected link loss, no extra debris, no tagging. Add only after the pilot, never mid-stream. | **Q13** |
 | Stop rules (trial) | End the trial early on: a contact with a person; a rover leaving the field boundary; a latched hold not cleared within 60 s; a recording failure (ARGOS or Terra `recording: false`). The trial is marked incomplete, not re-scored. | **Q14** thresholds |
 | Stop rules (session) | Stop the session if an operator asks, if the same failure ends two trials in a row, or on weather that degrades GPS below the gate. | |
