@@ -1,0 +1,57 @@
+% TikZ diagrams for the phone sensor timing experiment (Ch6 E2).
+% Needs: \usepackage{tikz} \usetikzlibrary{positioning,arrows.meta,decorations.pathreplacing,calc}
+
+% --- Figure: per-hop timestamps on the IMU path -------------------------------
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=8mm,
+  box/.style={draw, rounded corners=2pt, minimum height=11mm, text width=24mm, align=center, font=\small},
+  ios/.style={box, fill=blue!8, draw=blue!60!black},
+  app/.style={box, fill=orange!10, draw=orange!70!black},
+  rust/.style={box, fill=teal!10, draw=teal!60!black},
+  stamp/.style={font=\scriptsize\ttfamily, above=1mm},
+  >={Stealth[length=2mm]}]
+  \node[ios]  (cm)   {CoreMotion\\\scriptsize 100\,Hz};
+  \node[app, right=of cm] (h) {motion handler\\\scriptsize own queue};
+  \node[app, right=of h, line width=1pt] (q) {\texttt{terra.control}\\\scriptsize serial queue};
+  \node[rust, right=of q] (r) {Rust \texttt{pushImu}\\\scriptsize estimator};
+  \draw[->] (cm) -- (h); \draw[->] (h) -- (q); \draw[->] (q) -- (r);
+  \node[stamp] at (cm.north) {$t_\text{sensor}$};
+  \node[stamp] at (h.north)  {$t_\text{os}$};
+  \node[stamp] at (q.north)  {$t_\text{queue}$};
+  \node[stamp] at (r.north)  {$t_\text{done}$};
+  \draw[decorate, decoration={brace, mirror, amplitude=3pt}] ([yshift=-2mm]cm.south) -- ([yshift=-2mm]h.south)
+    node[midway, below=2mm, font=\scriptsize] {iOS delivery};
+  \draw[decorate, decoration={brace, mirror, amplitude=3pt}] ([yshift=-2mm]h.south) -- ([yshift=-2mm]q.south)
+    node[midway, below=2mm, font=\scriptsize] {queue wait};
+  \draw[decorate, decoration={brace, mirror, amplitude=3pt}] ([yshift=-2mm]q.south) -- ([yshift=-2mm]r.south)
+    node[midway, below=2mm, font=\scriptsize] {push};
+  \node[below=12mm of q, align=center, font=\scriptsize, text width=78mm] (share)
+    {also on \texttt{terra.control}, one block at a time:\\
+     AR frame + VIO $\cdot$ depth$\to$map (10\,Hz) $\cdot$ YOLO results $\cdot$ GPS/compass $\cdot$ 100\,Hz control tick};
+  \draw[dashed, gray] (q.south) -- (share.north);
+  \node[ios, below=12mm of cm, dashed, text width=26mm] (bare) {bare logger\\\scriptsize own \texttt{CMMotionManager}};
+\end{tikzpicture}
+\caption{Timestamps recorded for each IMU sample. The bare logger reads CoreMotion on its own queue as an iOS-only baseline. A control tick is stale if $t_\text{tick}-t_\text{sensor}$ of the newest pushed sample reaches the gate.}
+\label{fig:phone-timing-hops}
+\end{figure}
+
+% --- Figure: how a stale tick is attributed ------------------------------------
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=6mm and 4mm,
+  q/.style={draw, rounded corners=2pt, align=center, font=\small, text width=46mm, minimum height=9mm},
+  leaf/.style={draw, rounded corners=2pt, align=center, font=\small, text width=30mm, minimum height=10mm},
+  >={Stealth[length=2mm]}]
+  \node[q] (root) {tick with IMU age $\ge$ gate:\\\scriptsize look at the next sample after the newest pushed};
+  \node[leaf, fill=blue!8, below left=10mm and 8mm of root]  (gap) {\texttt{ios\_sensor\_gap}\\\scriptsize no sample taken};
+  \node[leaf, fill=blue!8, below=10mm of root]               (del) {\texttt{ios\_delivery}\\\scriptsize taken, not delivered};
+  \node[leaf, fill=orange!10, below right=10mm and 8mm of root] (que) {\texttt{terra\_queue}\\\scriptsize delivered, waiting on queue};
+  \draw[->] (root) -- (gap); \draw[->] (root) -- (del); \draw[->] (root) -- (que);
+  \node[below=4mm of que, font=\scriptsize, align=center, text width=34mm] {blocker named: AR/depth frame, mesh apply, detector};
+\end{tikzpicture}
+\caption{Attribution of each stale control tick. In the Debug run all 233 stale ticks were \texttt{terra\_queue}, blocked by the depth$\to$map frame.}
+\label{fig:phone-timing-attribution}
+\end{figure}
