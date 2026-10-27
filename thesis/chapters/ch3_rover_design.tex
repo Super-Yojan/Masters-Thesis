@@ -115,7 +115,11 @@ The software keeps separate transforms from the phone's motion axes and from ARK
 
 A mount calibration procedure records the camera height above the ground and any roll, pitch, and yaw relative to the rover axes, then fits the camera's forward and left offsets from two slow in-place turn passes with the motors disabled.
 The mount must be rigid: any play between phone and chassis appears as pose error.
-\todo{Report the measured camera height and offsets for CrabTrapBot.}
+On CrabTrapBot the phone sits in landscape at a camera height of 0.23~m, with its screen toward the rover and the rear camera facing forward.
+The software's nominal mount is upright portrait, so the landscape mount is only correct once the calibration's roll is set to $-90^\circ$ (top edge of the phone toward the rover's left) or $+90^\circ$ (toward its right); the sign convention has not yet been checked on the rover.
+Left at roll 0, the calibration produced two faults found in October 2026: the IMU's yaw-rate axis was 90$^\circ$ off, so the estimated yaw rate was wrong (Chapter~\ref{ch:autonomy}), and the body appeared tilted on its side, so the occupancy map stayed in its fallback horizon band and marked a ring of floor as obstacles.
+Saving a calibration now stops the controller first, because a save was silently refused while the rover was still in a driving mode (Terra PR~\#73).
+\todo{Report the measured camera height and offsets for CrabTrapBot, and confirm the sign of the landscape roll.}
 
 The mount's position also affects the compass.
 Close to the drive motors, the phone's magnetometer read headings with errors of 30--50$^\circ$, which is why Terra fuses visual--inertial yaw, GPS course, and the compass rather than trusting the compass (Section~\ref{sec:env-gps}).
@@ -164,6 +168,40 @@ A four-wheel skid-steer rover scrubs its tyres whenever it turns, and turning in
 Terra applies a shared turning policy to all managed commands (ARGOS teleoperation and every autonomous level): yaw rate is limited to 0.5~rad/s, turns ramp in and out, the minimum turning radius is 0.5~m, turning in place is off by default, and reverse is limited to 0.15~m/s.
 These are software starting values, not calibrated limits.
 \todo{Calibrate the turning limits on CrabTrapBot on synthetic turf.}
+
+\subsection{Rover profiles}
+\label{sec:rover-profiles}
+
+The two chassis share the software but not their drive.
+The small rover's four DC motors stalled whenever it was driven from ARGOS or by an autonomy level, though they ran from the phone's debug screen: the debug screen sends raw effort, while ARGOS and the levels go through the VIO speed loop, whose gains were tuned for CrabTrapBot, and a 0.2~m/s request became an effort of about 0.13, inside the motors' deadband.
+Terra now keeps a \emph{rover profile} per body: footprint, track width, planning clearance, speed and turn limits, whether turning in place is allowed, top speed, a skid factor, the wheel deadband and the spin effort (Terra PR~\#71).
+The controller gains follow from the profile rather than being set by hand: the linear feedforward is $1/v_{\text{top}}$, the yaw feedforward is $s\,b/(2v_{\text{top}})$ for skid factor $s$ and track $b$, and the PI gains are fixed multiples of the feedforward.
+Table~\ref{tab:rover-profiles} lists the two presets; the \texttt{terra} preset reproduces the earlier single configuration.
+The small rover's planning clearance was set to zero because, with 0.1~m of clearance, the A* footprint needed a gap five cells wide and a 0.4~m doorway flickered between passable and blocked (Terra PR~\#72).
+
+\begin{table}[ht]
+\centering
+\caption{Rover profile presets in Terra (\texttt{RoverProfile}). The \texttt{terra\_mini} deadband, spin effort and top speed are estimates, not measurements.}
+\label{tab:rover-profiles}
+\begin{tabular}{@{}l r r@{}}
+\toprule
+Field & \texttt{terra} & \texttt{terra\_mini} \\
+\midrule
+Footprint for planning (m) & $0.85 \times 0.85$ & $0.178 \times 0.178$ \\
+Track width (m) & 0.5 & 0.152 \\
+Planning clearance (m) & 0.05 & 0 \\
+Speed limit; yaw-rate limit & 2~m/s; 2~rad/s & 0.4~m/s; 1.5~rad/s \\
+Minimum turning radius (m) & 0.5 & 0.15 \\
+Turning in place & off & on \\
+Top speed at full effort (m/s) & 3.0 & 0.8 \\
+Skid factor & 2.4 & 2.0 \\
+Wheel deadband; spin effort & 0; 0.35 & 0.3; 0.6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The \texttt{terra\_mini} footprint, 0.178~m square, was measured on the small rover; it does not match the 0.403~m width of the CAD model in Table~\ref{tab:rover-bodies}.
+\todo{Reconcile the small rover's measured size with its CAD model, and measure its deadband, spin effort and top speed.}
 
 \section{Power}
 \label{sec:rover-power}
