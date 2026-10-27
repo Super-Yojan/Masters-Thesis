@@ -2,6 +2,8 @@
 
 **Status:** first draft. Introduction and problem formulation only. Methods, experiments, and results are not written yet.
 
+A full 6-page IEEE conference draft built from thesis Chapter 6 is in [`conference/`](conference/): requirements R1–R9, VIO vs OptiTrack, and sensor timing under load.
+
 **Research question:** Can a consumer phone (app + cameras/IMU/compute) run the sensing and control loop for a cheap differential-drive rover well enough for waypoint navigation with local obstacle avoidance, without onboard industrial compute?
 
 ## Files

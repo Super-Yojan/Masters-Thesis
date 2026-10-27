@@ -6,7 +6,7 @@ Research questions and metrics are in [`thesis/papers_research_questions.md`](..
 
 | Folder | Paper | Status |
 | --- | --- | --- |
-| [`paper1-phone-as-brain/`](paper1-phone-as-brain/) | Phone-as-brain feasibility (single rover) | Introduction and problem formulation drafted |
+| [`paper1-phone-as-brain/`](paper1-phone-as-brain/) | Phone-as-brain feasibility (single rover) | Introduction and problem formulation drafted; 6-page IEEE conference draft in [`conference/`](paper1-phone-as-brain/conference/) |
 | [`paper2-collaborative-slam/`](paper2-collaborative-slam/) | Multi-phone collaborative SLAM / shared maps | Placeholder |
 | [`paper3-fleet-dashboard/`](paper3-fleet-dashboard/) | ARGOS dashboard and attention scheduling | Placeholder |
 
