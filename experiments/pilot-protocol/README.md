@@ -36,14 +36,14 @@ default, so the documents can be dry-run before they are frozen.
 | Q13 | Disturbances in the pilot | None |
 | Q14 | Stop-rule thresholds | 60 s uncleared hold; field boundary |
 | Q15 | Primary endpoint | Fleet coverage at fixed T and N |
-| Q16 | Enforce Fixed in ARGOS (study mode) or by instruction | Not defaulted: needs a call this week |
-| Q17 | ARGOS session export | Not defaulted: export button or manual copy |
+| Q16 | Enforce Fixed in ARGOS (study mode) or by instruction | **Decided:** enforced by an ARGOS study mode (in progress) |
+| Q17 | ARGOS session export | **Decided:** export button in ARGOS (in progress) |
 | Q19 | Run the pilot without recommendations (Ch6 / LLM) if they are not ready? | **Decided:** yes; recommendations off in all pilot conditions |
 | Q18 | Search inside a Fixed L4 trial (detector-gated, not validated on hardware) | Allowed, availability logged per trial |
 
 ## Before Nov week 1
 
-1. Decide the open questions above (Q15 and Q16 first: without them the conditions cannot be compared).
+1. Decide the open questions above (Q15 first: without it the conditions cannot be compared).
 2. Prepare consent, operator IDs and log storage (04). The pilot needs no IRB approval (Yojan, 2026-10-27).
 3. Run the dry run (06) in the chosen venue and fix what breaks.
 4. Freeze: copy the decided values into 01 and 02, remove the "draft" headers, tag the repo, and record the ARGOS, Terra, Zorvane and TerraPhone revisions used.
