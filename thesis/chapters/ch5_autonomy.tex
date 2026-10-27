@@ -100,6 +100,7 @@ L2 bypasses the planner, while the L3 planner's velocity window was centred on t
 Every rover publishes and subscribes under its own numeric identifier below one shared Zenoh prefix (Chapter~\ref{ch:competition}).
 Light telemetry, such as pose, localization, goal and autonomy status, hardware state, and outdoor navigation, is received for every rover.
 Heavy topics, the occupancy grid, the point cloud and depth frames, are subscribed only for the rover the operator has selected (ARGOS PR~\#69), so the router does not forward every rover's map to the operator station.
+Team CERBERUS made the same choice in the DARPA Subterranean Challenge, where camera streams were sent only for the robot the Human Supervisor selected~\citep{tranzatto2022finals}.
 Requests that are not motion, such as a point-cloud capture request, go to their own inbox outside the motion-authority path, and bulk replies are sent at background priority and dropped rather than queued when the link is congested.
 \todo{Describe run identity and authority revisions, the Pi Bluetooth protocol and logging in an appendix, and list the topic contract.}
 
@@ -665,6 +666,10 @@ A first step towards a shared map is a two-rover prototype, \texttt{scripts/plot
 \todo{The script is not yet committed to Terra (checked Oct 26, 2026); this section was checked against the working copy Yojan shared that day. Commit it and pin the revision in the header comment.}
 It is a visualisation and registration tool only.
 It runs as a separate Python process that subscribes over Zenoh, it does not publish the fused grid back, and it does not change either rover's mapper or the arbiter.
+A fielded system shows what a full version needs.
+In Team CERBERUS's SubT system, each robot sent submaps to a central server at the base station whenever it had a link, and the server closed visual and LiDAR loops across robots and re-optimized all trajectories together~\citep{tranzatto2022finals}.
+A central coordinator then used the merged map to find global frontiers and send robots to them, while each robot's onboard planner kept exploring when the link was lost~\citep{kulkarni2022teamed}.
+The prototype here covers only the first part of that pipeline, registration and display.
 
 \subsection{Inputs and accumulation}
 
