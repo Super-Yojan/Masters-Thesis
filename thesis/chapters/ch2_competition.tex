@@ -238,6 +238,9 @@ An \texttt{experiment/status} topic pairs each rover's run clock with UTC, and c
 A trial is labelled as \emph{fixed} (one assigned level) or \emph{adaptive} (operator-chosen), and the assigned condition is recorded separately from the levels actually requested and in effect.
 Truncated recordings are not counted as complete runs, and interaction counts are recorded as workload proxies, not as measured workload.
 
+The phone also keeps an observability journal of sensor, estimator and controller samples, copied off the device after a session; its sample rate is configurable and defaults to 10~Hz.
+For ground truth on motion, the environment can include an OptiTrack motion-capture system: a small bridge republishes its rigid-body pose on the fleet router, so the same laptop that drives the rover records both the rover's own pose and the true one on one clock (Chapter~\ref{ch:autonomy}).
+
 \section{From the field to the real situation}
 \label{sec:real-world}
 
