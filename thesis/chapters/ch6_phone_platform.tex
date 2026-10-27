@@ -260,6 +260,7 @@ Code & Load & IMU rate & Delivery p50 / p99 & Notes \\
 \midrule
 C0 & Bare IMU only & 99.4~Hz & 3.4 / 4.1~ms & Pilot, 0--10~s; clean \\
 C1 & + ARKit, LiDAR depth, mesh & $\approx$100~Hz & 1.1 / 3.0~ms & Pilot, 11.6--19~s; one 1.17~s stall while the AR session started: 113 samples held, then delivered in a burst \\
+C2$^{*}$ & Terra tracking on, ARGOS connected, autonomy level changed during the run (not a clean C2) & 99.1~Hz & 0.9 / 2.1~ms & 336~s, Debug; Terra queue wait p50/p99 25 / 2417~ms; see Table~\ref{tab:phone-c2run} \\
 C2 & Terra tracking on & pending & pending & Debug and Release \\
 C3 & + YOLO detector & pending & pending & \\
 C4 & + FPV video & pending & pending & Debug and Release \\
@@ -276,7 +277,42 @@ The holds seen while driving (Section~\ref{sec:arch-timing}) are therefore not y
 
 Metrics per condition: IMU rate; delivery p50, p99 and maximum; number of gaps over 0.1~s per minute; fraction of control ticks with a stale IMU, split by cause and by blocking task; the control-tick lateness distribution.
 R5 passes if, after a warm-up, no tick in C5 sees an IMU sample older than 0.1~s.
-\todo{Fill C2--C5 from the sensor-timing thread's analysis, and add the stale-tick attribution table.}
+\paragraph{First run with Terra's load (C2$^{*}$).}
+On October 27, 2026, TerraPhone ran for 336~s in a Debug build with ARGOS connected, while the autonomy level was switched during the run.
+Table~\ref{tab:phone-c2run} gives the result.
+
+\begin{table}[ht]
+\centering
+\caption{E2 run C2$^{*}$: Terra tracking on, level changes, Debug build, 336~s, indoors, rover still. One run; not a clean condition.}
+\label{tab:phone-c2run}
+\small
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+Quantity & Measured \\
+\midrule
+IMU rate; iOS delivery p50 / p99 & 99.1~Hz; 0.9 / 2.1~ms \\
+Wait on Terra's control queue p50 / p99 & 25 / 2417~ms \\
+Stale-IMU control ticks & 233 of 13{,}091 (1.8\%); all \emph{terra\_queue}, blocked by AR frame processing \\
+Depth-to-map frame (10~Hz) & 48~ms at the start; p50 about 89~ms, maximum 114~ms after 200~s \\
+Control tick rate & 58~Hz, falling to 17~Hz (target 100~Hz) \\
+Detector & 4.5~Hz; $t_{\text{done}} - t_{\text{sensor}}$ p50 / p99 108 / 175~ms \\
+Heading updates & 49.6~Hz \\
+GPS & 53 fixes (indoors) \\
+Thermal state & nominal $\to$ fair at 44~s, $\to$ serious at 244~s \\
+Battery & 75\% $\to$ 70\% \\
+Anomalies after 270~s & AR frame gaps up to 3.8~s; one 2.3~s iOS IMU stall at 311~s; cause unknown \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Every stale tick in this run was caused by Terra's own control queue, not by iOS: the IMU samples reached the app within about 2~ms, then waited behind AR frame processing, by up to 2.4~s.
+The depth-to-map step alone took 48~ms at the start, and about 89~ms after 200 seconds, which is most of its 100~ms slot at 10~Hz.
+Over the same time the control tick rate fell from 58 to 17~Hz and the phone went from nominal to serious thermal state.
+This suggests the work slowed as the phone heated up, but one Debug run cannot separate heat from the growing map or the Debug build.
+So the answer to R5 is split: iOS meets it, and Terra's scheduling on the phone does not yet.
+This is a software fault with a known fix direction, which is to move AR frame processing off the queue that carries the IMU (Section~\ref{sec:arch-timing}).
+The late iOS IMU stall at 311~s and the AR gaps after 270~s are the first sign that iOS itself may degrade under sustained load, and E6 is designed to test that.
+\todo{Repeat C2 cleanly (no level changes) in Debug and Release, then C3--C5, and add the stale-tick attribution per blocker.}
 
 \subsection{E3: LiDAR obstacle detection from the rover}
 \label{sec:phone-e3}
@@ -341,6 +377,7 @@ In simulation the model fails R7 for shaded and raised buckets, and the confirm 
 \paragraph{Rate and accuracy on the phone (pending).}
 Two gaps remain: how fast the detector runs on the phone while everything else does, and whether the simulator's accuracy transfers to real buckets.
 The rate comes from the detector rows of E2's C3--C5 files: frames per second, and inference latency $t_{\text{done}} - t_{\text{sensor}}$ (p50, p99).
+The first run with Terra's load, C2$^{*}$ in a Debug build, gave 4.5~Hz and 108 / 175~ms (p50 / p99) (Table~\ref{tab:phone-c2run}). A Release build and the clean conditions are still needed.
 The field test places real ground and raised buckets of both colours at 2, 4, 6, 8, 10 and 12~m, in sun and shade, with the rover parked and then approaching at 0.3~m/s, 30~s per placement.
 Metrics: recall and precision per distance, colour and height; the confidence distribution against 0.8; and the error of the reported bucket position against tape.
 \todo{Fill the detector rate from E2 and run the field test.}
@@ -389,18 +426,19 @@ R1 VIO scale & Fail as measured & 0.91 in the mocap room; E1b decides whether a 
 R2 VIO noise & Pass & E1 \\
 R3 VIO delay & Pass & E1 \\
 R4 Heading (VIO) & Pass & E1; compass part pending in E5 \\
-R5 IMU delivery & Pass in steady state; startup stall & E2 C0--C1 pilot ($<$20~s); full runs and Terra load pending \\
+R5 IMU delivery & iOS: pass, with stalls; Terra queue: fail & iOS delivery p99 $\le$ 4~ms, but stalls of 1.17~s at ARKit start and 2.3~s after 5~min; 1.8\% of ticks stale from Terra's queue (C2$^{*}$) \\
 R6 Depth & Pending & Failure cases known; accuracy from E3 \\
 R7 Detection & Fail in simulation & Shaded and raised buckets; confidence below confirm threshold; real-world pending \\
 R8 GNSS & Pending & E5 \\
-R9 Endurance & Pending & E6 \\
+R9 Endurance & Pending & E6; early sign: serious thermal state after about 4~min in C2$^{*}$ (rover still, Debug) \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 The evidence so far supports a qualified version of the thesis claim.
-The parts of the phone that the inner control loop depends on most, VIO noise and delay, VIO heading and the steady-state IMU stream, meet their requirements with margin.
-The two failures are of different kinds.
+The parts of the phone that the inner control loop depends on most, VIO noise and delay, VIO heading and iOS's IMU delivery, meet their requirements with margin.
+The failures are of different kinds.
+The stale-IMU holds come from Terra's own scheduling on the phone, not from iOS, so they can be fixed in software.
 The VIO scale error is small enough that the loop stays stable and the rover stays consistent with its own map (Section~\ref{sec:auto-state-validation}); it matters for absolute distances, and the literature both reports similar errors~\citep{feigl2020localization} and predicts them for ground vehicles~\citep{wu2017vinswheels}.
 The detector's failures are failures of a model trained for this task, not of the phone's hardware.
 What remains open is the claim's hardest part: whether all of this holds with every subsystem running at once, on turf, for 90 minutes.
