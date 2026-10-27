@@ -1,13 +1,15 @@
 # Ethics and permission path (pilot, draft)
 
-Nothing here is a ruling. Only the university's IRB office (or the office that
-makes human-subjects determinations) can say whether the pilot needs review.
-The checklist is what to settle, and with whom, **before** any operator other
-than Yojan sits at ARGOS for data that will appear in the thesis.
+**Decided (Yojan, 2026-10-27): the pilot does not need IRB approval.** The
+pilot can start without a determination letter. The checklist below still
+covers what to set up for the pilot (consent, identifiers, storage, safety), and
+the IRB items now apply to the main study after the pilot.
 
-## Q11. Who operates in the pilot? (not decided)
+## Who operates (Q8, not decided)
 
-| Option | What it usually means for review (check locally) |
+Q11 (pilot ethics path) is decided above. The review column below now matters only for the main study.
+
+| Option | What it usually means for review in the main study (check locally) |
 |---|---|
 | Yojan only, as a system check | Usually not human-subjects research: no participants, data is about the system. Still state in the thesis that the dry-run data is the author's own. |
 | Team members or classmates, data used in the thesis | Usually human-subjects research, because the thesis reports their behaviour and workload (TLX). Typically needs at least an exempt determination before collection. |
@@ -16,7 +18,8 @@ than Yojan sits at ARGOS for data that will appear in the thesis.
 ## Checklist
 
 - [ ] Ask the advisor whether the department requires its own sign-off in addition to the IRB.
-- [ ] Contact the IRB office and ask for a determination for a minimal-risk operator study (desktop interface, small rovers on a sports field or in simulation, a questionnaire). Ask specifically whether a pilot with classmates needs the same review as the main study.
+- [x] Pilot review: not needed (Yojan, 2026-10-27).
+- [ ] Main study: contact the IRB office for a determination before recruiting operators for the study proper.
 - [ ] Confirm whether CITI (or equivalent) human-subjects training is required for Yojan and the advisor, and complete it.
 - [ ] Decide what is recorded: logs only, or also screen capture, FPV video, audio, think-aloud. Each added stream may change the review category. Draft: logs + TLX only.
 - [ ] Decide identifiers: pseudonymous operator IDs (P01, P02…). The ID-to-name key is kept apart from the logs, off git.
@@ -24,10 +27,10 @@ than Yojan sits at ARGOS for data that will appear in the thesis.
 - [ ] Decide what goes in the public repo: aggregated tables only, or de-identified per-trial logs.
 - [ ] Physical safety (field venue): a spotter who can stop any rover, a field boundary, no bystanders within the operating area, permission to use Field 3 outside the match.
 - [ ] Compensation, if any, and whether course credit or grades are involved (classmates must not feel obliged).
-- [ ] Get the determination letter (or exemption) in writing and record its number in the thesis methods.
-- [ ] Do not start operator trials with anyone except Yojan until the above is settled. If it is not settled by Oct 31, run the Nov week 1 dry runs with Yojan only and slip the operator pilot.
+- [ ] Main study: get the determination letter (or exemption) in writing and record its number in the thesis methods.
+- [ ] Thesis methods: state that the pilot ran without IRB review and why, so a reader is not left to guess.
 
-## Draft consent text (to adapt to the IRB template)
+## Draft consent text (use for pilot operators as a courtesy; adapt to the IRB template for the main study)
 
 > **Supervising robots from one operator station: pilot study**
 >
