@@ -50,7 +50,15 @@ IEEE Spectrum also noted that relying on a skilled, practiced operator suits a c
 
 SubT therefore leaves open the question this thesis studies.
 Teams arrived at their autonomy levels through years of iteration, not through a measured account of how much autonomy a mission needs and when the human should step in.
-\todo{Add SubT team system papers (for example CERBERUS, CoSTAR, CSIRO Data61) for their autonomy and communication architectures.}
+Team CERBERUS, which won the Systems track, published its full system~\citep{tranzatto2022scirob,tranzatto2022finals,tranzatto2022tunnelurban}.
+Its fleet was heterogeneous: ANYmal~C legged robots in two roles (Explorers and relay Carriers), collision-tolerant RMF-Owl drones, and a teleoperated roving robot on a 300~m fiber tether~\citep{tranzatto2022finals}.
+Every robot ran the same graph-based exploration planner, GBPlanner~\citep{dang2020gbplanner,gbplannerros}, and a behavior tree that sent the robot home when it stopped making progress or its time budget ran out, and backtracked when it lost the wireless link~\citep{tranzatto2022finals}.
+The Human Supervisor did not set an autonomy level.
+Autonomy was high for every robot, and the supervisor intervened by giving tasks: start exploring, explore inside a bounding box, go to a chosen frontier or waypoint, scan an area, or return home~\citep{tranzatto2022finals}.
+The supervisor was still needed where autonomy failed, for example on stairs outside the planner's settings and where the LiDAR never saw the bottom of a descending staircase~\citep{tranzatto2022finals}.
+The team describes the human's role moving from operator, directing each robot's path, towards supervisor, coordinating the group, across the circuit events~\citep{tranzatto2022finals}.
+CERBERUS tied with CSIRO Data61 on 23 points in the Final and won on the tie-breaker~\citep{tranzatto2022finals}.
+\todo{Add CoSTAR and CSIRO Data61 system papers for comparison.}
 
 \subsection{Champlain Towers South, Surfside, 2021}
 
@@ -132,7 +140,11 @@ The deployments above show what operators ask for: one centralized map from whic
 Interfaces for multi-robot supervision commonly combine a map-centric overview with on-demand detail for a selected robot.
 Mixed-reality and immersive command interfaces extend this; Milgram and Kishino's reality--virtuality continuum is the standard way to classify them~\citep{milgram1994continuum}.
 \todo{Replace the placeholder survey of AR/VR command interfaces for multi-robot supervision (\texttt{chen2018survey} in thesis\_outline.tex) with a confirmed source.}
-\todo{Add examples of fleet supervision interfaces from SubT teams and from multi-UAV ground control stations.}
+CERBERUS ran its base station on a single computer with two applications~\citep{tranzatto2022finals}.
+The Mission Control Interface showed robot poses in a 3D view, the camera stream of the selected robot only, and a control panel for tasking.
+The Monitor and Artifacts Reporting Interface showed the global map, every robot's position and mode, and an audible notification for each new artifact report, which the supervisor could accept, reject, or reclassify before it was submitted.
+The team moved to one computer and to one camera stream at a time after operator errors caused a significant share of its mistakes in the first two circuit events~\citep{tranzatto2022finals}.
+\todo{Add examples of fleet supervision interfaces from other SubT teams and from multi-UAV ground control stations.}
 
 \section{Communication constraints}
 \label{sec:bg-comms}
@@ -141,7 +153,12 @@ Every deployment in Section~\ref{sec:bg-disaster} met a communication limit: a l
 Two design responses follow.
 The first is onboard autonomy that keeps the robot safe and useful when the link drops.
 The second is a telemetry design that sends low-bandwidth state continuously (pose, mission state, health, autonomy level, and whether the robot needs help) and sends high-bandwidth data such as video, point clouds, and maps only when the operator asks for it.
-\todo{Cite communication-aware autonomy and multi-robot networking work, including SubT communication architectures (mesh radios, deployable relay nodes).}
+CERBERUS used both responses~\citep{tranzatto2022tunnelurban,tranzatto2022finals}.
+Its legged and roving robots carried mesh radios, and Carrier robots dropped relay nodes along the route.
+The Human Supervisor decided when and where each relay was dropped, so building the network was part of the operator's work.
+Essential topics (heartbeat, telemetry, artifact reports, and map data) streamed continuously, while camera streams were sent only when the supervisor selected them~\citep{tranzatto2022finals}.
+Each robot also localized and mapped onboard and kept exploring without the base station~\citep{kulkarni2022teamed,khattak2025compslam}.
+\todo{Cite communication-aware autonomy and multi-robot networking work beyond SubT.}
 \todo{Cite work on bandwidth scaling of telemetry with fleet size.}
 
 \section{Low-cost onboard navigation}
