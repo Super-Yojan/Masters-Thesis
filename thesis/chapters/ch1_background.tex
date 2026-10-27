@@ -157,7 +157,8 @@ Because it replans every cycle, a sequence of obstacles updates the trajectory w
 \subsection{Phones as robot computers}
 
 Phones have been used in robotics as teleoperation clients, communication links, and extra cameras.
-\todo{Cite prior smartphone-based robots and phone-as-controller platforms.}
+Oros and Krichmar built low-cost Android robots for teaching and research~\citep{oros2013smartphone}, NASA's Smart SPHERES added an Android smartphone to free-flying robots on the International Space Station~\citep{fong2013smartspheres}, and OpenBot drove a \$50 wheeled body with an Android phone for person following and learned navigation~\citep{muller2021openbot}.
+Chapter~\ref{ch:phone} reviews these works and tests the phone against Terra's own requirements.
 Using the phone as the vehicle's only onboard computer depends on how well it estimates its own motion.
 Visual--inertial odometry (VIO) fuses camera and IMU data for pose; Delmerico and Scaramuzza benchmarked monocular VIO algorithms on flying-robot hardware~\citep{delmerico2018benchmark}.
 On iOS, ARKit provides camera pose and, on supported devices, depth.
