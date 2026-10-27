@@ -18,6 +18,14 @@
 %   crates/terra-mobile/src/actuators.rs      (Rust actuator routing in shadow mode, Terra #63)
 %   crates/terra-autonomy/src/task.rs, arbiter/task.rs, docs/autonomy/TASK.md (L5, Terra #70)
 %   ARGOS #69 (focused subscriptions), #72/#83 (Capture 3D, Live 3D), #85 (Task L5 panel).
+% Updated Oct 27, 2026 against Terra main 4d63878 and ARGOS main (after #89):
+%   Terra #71/#72 (rover profiles, wheel deadband), #74 (IMU through the mount),
+%   #75 (L4 look-around cleared on level change), #76/#77/#78 (ARKit mesh floor veto,
+%   floor walk off the control queue), #80/#81 (3D classification page), #82 (sensor
+%   hold causes, planner window, autonomy brief), #83 (audit fixes); ARGOS #87, #89.
+%   Proposed, not merged on Oct 27: Terra #84 / ARGOS #90 (barrier label for glass).
+%   Velocity validation: OptiTrack sessions of Oct 26--27, data and scripts in the
+%   project's velocity-experiment folder (analyze_velocity.py, mocap_session).
 % Defaults are software starting values, not calibrated physical limits.
 % Section sec:auto-fusion is transcribed from Terra scripts/plot_sim_rovers.py
 % (uncommitted working copy, Oct 26, 2026) and its Oct 25 technical report.
@@ -60,6 +68,31 @@ Two fixes from the same period show why the loop's timing is delicate on a phone
 ARKit delivered frames on the same queue as the 100~Hz control tick, depth mapping and point-cloud publishing, so frames that arrived during a step waited holding their \texttt{ARFrame}, and ARKit warned that eleven frames were retained (fixed in Terra PR~\#65).
 A semaphore wait between the high-priority frame thread and a utility-priority capture queue was a priority inversion (fixed in Terra PR~\#61).
 Neither changes the mathematics below, but both affect how fresh the inputs to it are.
+
+An audit of TerraPhone and its Rust bindings on October 27, 2026 measured how far the split still has to go.
+The Rust \texttt{step} already returns the routed actuator frame, but iOS only compares it with its own and still encodes and sends the Swift frame; the Android client already sends the Rust one.
+The e-stop latch, the mount-confirmation gate, the pause on lost visual tracking and the tick dividers exist only in Swift, and iOS and Android use different conventions for the phone-to-body mount transform.
+The audit also found bugs in the Swift layer, the most serious being that stopping the controller cleared the e-stop latch, so a stop followed by a restart silently re-armed a rover that had been e-stopped.
+Those bugs and the dead code around them were fixed in Terra PR~\#83: the latch now survives a stop and is cleared only by an explicit reset.
+The remaining order of work is to send the Rust actuator frame on iOS, give the Rust tick a typed result in place of a status string, and move the gates and tick dividers into Rust.
+\todo{Report the migration once iOS sends the Rust actuator frame.}
+
+\subsection{Loop timing on the phone}
+\label{sec:arch-timing}
+
+Every stage of the pipeline in this chapter holds its output when an input is stale: the estimator when the IMU is older than 0.1~s, the controller when its time step exceeds 0.1~s, the turning limiter when its step exceeds 0.1~s.
+These rules make the rover stop rather than act on old data, but they also turn any delay on the control queue into a hold, and a hold clears the controller's integrators.
+Three faults found during the motion-capture sessions of October 26--27 (Section~\ref{sec:auto-state-validation}) were of this kind, and none was a fault in the control law itself.
+
+\begin{description}
+\item[Mesh walk on the control queue.] The floor veto of Section~\ref{sec:auto-floor-veto} first walked the ARKit mesh on the control queue once a second. Each walk stalled pose and IMU delivery for about 150~ms, so the estimator reported itself not ready, the controller held, and a commanded 0.4 in effort fell to about 0.19 after each reset. The walk now runs on a utility queue and is built outside the map lock (Terra PR~\#77), and walks in flight are dropped after a map or ground reset (Terra PR~\#78).
+\item[Status parsing at L3.] In L3 the autonomy status carries the planner trace, about 30~KB of JSON, and TerraPhone parsed it three to four times on every 10~ms tick. The control queue fell behind, the IMU sample went stale, and the rover held with \texttt{sensor\_unhealthy}; one L3 run logged 191 such holds. Rust now also returns a short autonomy brief of under 1~KB that the hot Swift paths read instead (Terra PR~\#82). Before the fix, ARGOS could only show that the rover was holding; now Terra records the cause of each sensor hold and keeps it for 10~s, and ARGOS shows it on a \emph{Sensor hold} row (Terra PR~\#82, ARGOS PR~\#89). The cause read \texttt{stale\_imu}, which is what located the fault.
+\item[Late ticks in straight runs.] In the fourth motion-capture session, five straight runs ended about one second after they started, when one tick arrived more than 0.1~s late and the turning limiter held. The teleoperation client then treated the hold as a release of the drive keys. This is probably the same status-parsing load, since that phone build did not yet have Terra PR~\#82, but it has not been confirmed.
+\end{description}
+
+The holds explain why L3 failed to reach a goal that L2 reached from the same start.
+L2 bypasses the planner, while the L3 planner's velocity window was centred on the measured speed (Section~\ref{sec:auto-planner}): after each hold the measured speed of a wheel inside the motor deadband was zero, the planner offered at most 0.1~m/s, and the wheels never left the deadband.
+\todo{Measure the control-tick latency distribution on the phone at L0 and L3 after Terra PR~\#82, and report how often a tick exceeds the 0.1~s limits.}
 
 \subsection{Fleet communication}
 \label{sec:arch-topics}
@@ -106,6 +139,58 @@ The estimate is the body-frame forward component and the latest gyro yaw rate:
   \hat v = \left[R(\mathbf{q}_N)^{\top} \mathbf{v}_N\right]_x, \qquad \hat\omega = \omega_{z,N}.
 \end{equation}
 The estimate is withheld, and the controller stops, if VIO reports lost tracking, if the IMU is older than 0.1~s, or if VIO is older than 0.35~s.
+On the phone, the VIO velocity $\mathbf{v}_0$ is itself a finite difference of the ARKit position of the rover's reference point, low-pass filtered with a 30~ms time constant.
+
+The IMU vectors must be rotated from the phone's axes into the rover body through the mount calibration (Chapter~\ref{ch:rover}).
+Until Terra PR~\#74 the iOS IMU path assumed a phone lying flat, so on an upright mount the gyro axis read as yaw was the phone's roll axis, and the estimated yaw rate stayed near zero through arcs at 0.5 to 1.1~rad/s.
+The fix maps Core Motion through the saved mount transform.
+That transform is only as good as the saved mount: with the landscape phone on CrabTrapBot, a calibration with roll 0 leaves the yaw-rate axis and body up 90$^\circ$ off.
+The ARKit heading and forward speed do not depend on this mapping and were unaffected.
+
+\subsection{Validation against motion capture}
+\label{sec:auto-state-validation}
+
+Neither chassis has wheel encoders, so the VIO speed is the only speed the controller sees.
+To check it, CrabTrapBot was driven in an OptiTrack motion-capture volume of about $12 \times 8$~m on October 26 and 27, 2026.
+OptiTrack (Motive~3, NatNet~4) tracked a rigid body on the chassis at 120~Hz; a 3~m tape measure read 0.01~m different from OptiTrack, so it served as ground truth.
+A bridge script republished the rigid-body pose on the fleet router, and a single program on the laptop recorded both poses and drove the rover in straight lines at a set speed and distance through ARGOS-style teleoperation.
+The phone's observability journal was copied off the phone after each session.
+For every run, the steady part of the phone's forward speed, after the speed-up and before the stop, was compared with OptiTrack's.
+
+Table~\ref{tab:vio-scale} gives the ratio of phone to OptiTrack speed for the 17 usable straight runs at 0.2 to 0.4~m/s.
+
+\begin{table}[ht]
+\centering
+\caption{Steady forward speed, phone VIO divided by OptiTrack, for straight runs on CrabTrapBot, October 26--27, 2026.}
+\label{tab:vio-scale}
+\begin{tabular}{@{}l r l@{}}
+\toprule
+Session & Runs & Ratio per run \\
+\midrule
+1 (Oct 26) & 2 & 0.98, 0.81 \\
+2 (Oct 26) & 4 & 0.81, 0.89, 0.93, 0.88 \\
+3 (Oct 26) & 1 & 1.01 \\
+4 (Oct 27) & 10 & 0.83, 0.60, 0.93, 0.95, 0.92, 0.86, 0.90, 1.01, 0.92, 0.97 \\
+\midrule
+All & 17 & mean 0.894, s.d.\ 0.098, median 0.92 \\
+Without the 0.60 run & 16 & mean 0.912, s.d.\ 0.065 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The phone under-read the speed in 15 of the 17 runs.
+The same under-read appeared when the phone was carried by hand along a line, 4.06~m on the phone against 4.42~m on OptiTrack (0.92), so it comes from ARKit and not from the wheels or motors.
+The other properties the controller needs were good: at rest the speed bias was 0.0009~m/s with a standard deviation of 0.003~m/s; while driving the noise was 0.007~m/s in the control band and 0.012~m/s above it; and ARKit's heading agreed with OptiTrack to within 0.1$^\circ$ over a 475$^\circ$ arc.
+The latency relative to the gyro was roughly 50 to 70~ms, a rough figure because the journal logged at only 8~Hz.
+Two events fell outside this behaviour: the 0.60 run and a 2.75~m jump in ARKit position on one arc, both consistent with VIO losing and re-finding its scale or anchor.
+
+For the controller of Section~\ref{sec:auto-control}, a scale error of about 9\% shifts the loop gain by the same small amount and leaves it stable, but the loop drives the \emph{measured} speed to the target, so the rover really travels about 9\% faster and farther than it believes.
+Over a 1~s planner rollout at 0.3~m/s that is 3 to 4~cm, less than one grid cell.
+The occupancy map is built from LiDAR depth in the same ARKit frame, so the rover stays consistent with its own map; absolute distances, GPS goals and the fusion of two rovers' maps are where the error shows.
+The leading explanation is the room itself: OptiTrack's infrared strobes may interfere with the phone's LiDAR, and the floor was plain.
+\todo{Repeat the straight runs in a textured hallway and outdoors with a tape measure; if the ratio stays near 0.91, add a fixed scale correction to the velocity estimate.}
+\todo{Measure arcs and turns after setting the landscape mount roll, log at 100~Hz to tighten the latency estimate, and sweep 0.1 to 0.5~m/s.}
+\todo{Add a guard that rejects VIO position steps larger than the rover could physically move, and size it from longer sessions.}
 
 \section{Occupancy mapping}
 \label{sec:auto-map}
@@ -117,7 +202,7 @@ For each depth frame, every sampled pixel $(u, v)$ with depth $z$ is back-projec
   \mathbf{r}_c = \left(\frac{(u - c_x) z}{f_x},\; \frac{(v - c_y) z}{f_y},\; z\right),
 \end{equation}
 rotated into the world frame, and classified as an obstacle hit if its endpoint lies between 0.15 and 2.0~m above the ground plane, within 15~m of the camera.
-Each pixel gets one of six labels: free, obstacle, overhead, out of range, outside the band, or no return; the grid update below uses the same classifier, so the labels and the map evidence cannot disagree.
+Each pixel gets one of six labels: free, obstacle, overhead, out of range, outside the band, or no return, plus the floor-veto label of Section~\ref{sec:auto-floor-veto}; the grid update below uses the same classifier, so the labels and the map evidence cannot disagree.
 The cells along the ray, found by Bresenham traversal, are marked free, and the endpoint cell is marked occupied for a hit.
 Each cell is updated at most once per frame, with obstacle evidence taking precedence:
 \begin{equation}
@@ -143,6 +228,12 @@ A labelled point capture on a flat floor showed the body axis about 16$^\circ$ o
 The camera height $h_c$ comes from the mount calibration (Chapter~\ref{ch:rover}) when one with a plausible height (0.1 to 3~m) is saved, as a robot model would use a fixed camera transform (Terra PR~\#68).
 Without a calibration, $h_c$ is taken once from the first ARKit horizontal plane of at least 0.4~m$^2$ whose height stays within 3~cm for 1~s.
 That fallback is fragile: if the app is started with the phone in hand and the phone is mounted afterwards, $h_c$ is the hand height and the plane sinks below the real floor.
+
+Before a floor is found, the map uses a \emph{horizon band}: returns within $\pm10^\circ$ of the horizon count as obstacles out to the range at which the band meets the floor, $h_c/\tan 10^\circ$, about 1.3~m for a 0.23~m camera.
+The band has no margin, so a camera height set a little too high puts that limit beyond the true floor intercept: in one capture in the motion-capture room every one of the 4,094 obstacle points was floor, in a ring 1.1 to 1.3~m around the rover.
+The band also persists if the ground plane rejects the body's up axis, which it does when the body appears tilted by more than 60$^\circ$.
+On CrabTrapBot that happened because the phone is mounted in landscape and the mount calibration still had roll 0, so the body appeared to lie on its side.
+The map status now reports the tilt, and band frames now use the same height offset as the mesh floor, which had been drawn 0.23~m too high (Terra PR~\#82).
 \todo{Repeat the flat-floor point capture with the level, mount-calibrated plane on CrabTrapBot and report the fraction of floor points labelled obstacle before and after.}
 
 \subsection{Inspecting the classifier}
@@ -154,6 +245,29 @@ A \emph{Capture 3D} records 10~s at 1~Hz, about 640~KB per frame, and ARGOS save
 A \emph{Live 3D} stream sends decimated frames at up to 5~Hz for as long as ARGOS renews a lease, and ARGOS draws the newest frame on the map under the rover (Terra PR~\#67, ARGOS PR~\#83); ARGOS uses a 6~s lease renewed every 2~s, 2~Hz, and every third pixel in each direction, about 70~KB per frame.
 Decimation scales the camera intrinsics so that every ray kept is unchanged.
 The always-on thinned point cloud that the phone used to stream is now sent only while a capture runs.
+For work without a rover or a laptop, TerraPhone also has a \emph{3D classification} debug page that shows the live labelled point cloud and the mesh floor cells on the phone itself, held in the hand (Terra PRs~\#80 and \#81).
+
+\subsection{Floor veto from the ARKit mesh}
+\label{sec:auto-floor-veto}
+
+A level ground plane removes the tilt error but not every false obstacle: depth noise, a slightly wrong camera height or a gentle slope can still lift a floor return above the 0.15~m band floor.
+ARKit can classify its reconstructed scene mesh into surfaces such as floor, wall, window and door, and this gives a second, independent estimate of where the floor is.
+TerraPhone turns on the classified mesh and sends the centres of floor faces to the Rust map once a second.
+The map bins them into 0.1~m cells, keeps the median height per cell, and drops cells more than 8~cm from the median of the whole surface.
+In the classifier, a return that would be an obstacle but lies less than 0.15~m above a trusted mesh floor cell is relabelled \emph{floor veto} and clears its cell like a free return; a return higher than that above the same cell is still an obstacle, so an object standing on the floor is not erased.
+The mesh floor also seeds the ground-plane height when no floor plane anchor has been found.
+Captures carry the same surface, so a captured frame shows exactly what the map did, and ARGOS colours the new label (Terra PR~\#76, ARGOS PR~\#87, both merged October 26, 2026).
+Two design questions remain open: whether a veto should count as free evidence or as no evidence, and how well ARKit's floor classification holds on turf.
+\todo{Repeat the flat-floor capture with the floor veto on and report the fraction of floor returns labelled obstacle with and without it.}
+
+\subsection{Glass}
+\label{sec:auto-glass}
+
+The phone's LiDAR sees through clear glass, so the map carves glass walls and doors as free space, and L3 would route through them.
+A proposed change, not merged on October 27, 2026, uses the same classified mesh: faces ARKit labels wall, window or door are sent to the map, and cells with at least three such faces are marked as a \emph{barrier} with a height span.
+A depth ray that crosses a barrier cell stops there; the cell is marked occupied and the return gets a new barrier label (Terra PR~\#84, ARGOS PR~\#90).
+This only works where ARKit has put mesh faces on the glass, which a clear pane seen at a shallow angle may not get.
+\todo{Test the barrier on real glass doors and windows; if it misses them, compare remembering bumps and adding an ultrasonic sensor.}
 
 \section{Vehicle model and velocity control}
 \label{sec:auto-control}
@@ -198,6 +312,13 @@ The integrators use back-calculation anti-windup against the effort actually app
 \end{align}
 When the target is zero and the rover is nearly still ($|\hat v|, |\hat\omega| < 0.015$), the outputs are forced to zero and the integrators reset, so the motors do not hum at rest.
 If in-place turning is allowed and the target is a pure rotation, the controller bypasses the loop and applies a fixed spin effort, $u_R = -u_L = u_s \operatorname{sgn}\omega^\ast$.
+Small DC motors do not turn below some effort $d$, so a rover profile may set a wheel deadband (Terra PR~\#71).
+Each moving wheel's effort $u$ is then lifted past it before it is sent,
+\begin{equation}
+  u' = \operatorname{sgn}(u)\left(d + (u_{\max} - d)\,\frac{|u|}{u_{\max}}\right) \quad \text{for } |u| \ge 0.01,
+\end{equation}
+while efforts under 0.01 stay zero and the integrators work on the uncompensated effort.
+The default is $d = 0$; Chapter~\ref{ch:rover} gives the per-rover values.
 
 The controller stops (zero effort, integrators cleared) when the target is 0.5~s old or older, when the time step is non-positive or longer than 0.1~s, or when the estimator is not healthy.
 Table~\ref{tab:controller-gains} lists the defaults.
@@ -217,6 +338,7 @@ $k^{\text{ff}}_v,\; k^{\text{ff}}_\omega$ & Linear and yaw feedforward & $1/3$,\
 $k_{\text{aw}}$ & Anti-windup gain & 4.0 \\
 $u_{\max}$ & Maximum effort & 1.0 \\
 $u_s$ & In-place spin effort & 0.35 \\
+$d$ & Wheel deadband & 0 \\
 -- & Target timeout; maximum step & 0.5~s;\; 0.1~s \\
 \bottomrule
 \end{tabular}
@@ -249,11 +371,19 @@ It is a deterministic velocity-space sampler in the family of the dynamic window
 
 \subsection{Dynamic window}
 
-From the current measured twist $(\hat v, \hat\omega)$ and planning step $\Delta t = 0.1$~s, the reachable window is
+The window grows from a centre twist $(\bar v, \bar\omega)$.
+For each axis the centre is the last command the arbiter allowed, $(v_{\text{prev}}, \omega_{\text{prev}})$, zero after a hold, unless the rover is already measured going faster in the same direction:
+\begin{equation}
+  \bar v = \begin{cases} \hat v & v_{\text{prev}}\,\hat v \ge 0 \text{ and } |\hat v| > |v_{\text{prev}}|, \\ v_{\text{prev}} & \text{otherwise,} \end{cases}
+\end{equation}
+and likewise for $\bar\omega$.
+With planning step $\Delta t = 0.1$~s, the reachable window is
 \begin{align}
-  V &= [\hat v - a\Delta t,\; \hat v + a\Delta t] \cap [-v_{\text{rev}},\; v_{\max}], \\
-  \Omega &= [\hat\omega - \alpha\Delta t,\; \hat\omega + \alpha\Delta t] \cap [-\omega_{\max},\; \omega_{\max}].
+  V &= [\bar v - a\Delta t,\; \bar v + a\Delta t] \cap [-v_{\text{rev}},\; v_{\max}], \\
+  \Omega &= [\bar\omega - \alpha\Delta t,\; \bar\omega + \alpha\Delta t] \cap [-\omega_{\max},\; \omega_{\max}].
 \end{align}
+Until Terra PR~\#82 the window was centred on the measured twist alone.
+A wheel inside the motor deadband measures zero, so after a hold the planner offered at most $a\Delta t = 0.1$~m/s, which kept the wheels in the deadband; this is how L3 stalled where L2 did not (Section~\ref{sec:arch-timing}).
 The planner samples an $11 \times 11$ grid of $(v, \omega) \in V \times \Omega$, evenly spaced including the endpoints.
 For managed commands each sample is first passed through the turning limiter of Section~\ref{sec:auto-turning}, so the planner only considers commands that will actually be executed.
 
@@ -409,6 +539,8 @@ Progress is reported as observed free area and explored fraction,
 \end{equation}
 The run ends when $t \ge T_b$, when $\mathcal{F}$ is empty, on a stop or takeover, or on a sustained stale map or safety hold.
 The map-stale ending has a 3~s grace, while motion is still held from the first stale tick (Terra PR~\#60).
+The explorer can also ask the arbiter for a look-around, a slow turn on the spot to observe more of the map.
+That look-around was cleared only inside L4, so after an L4 run the rover kept executing it in L2 and L0 and reported \texttt{obstacle\_blocked} although those levels never consult the map; changing level now ends it (Terra PR~\#75).
 In ARGOS this level is offered as ``L4 Explore'' with a 3, 5, or 10~minute budget (ARGOS PR~\#64).
 
 \subsection{L4: target search}
@@ -666,7 +798,9 @@ Publishing the fused map back, so that the frontier explorer of Section~\ref{sec
 Each autonomy level is a different source of intent feeding one shared pipeline: a dynamic-window planner that only accepts commands it can still stop from, a turning limiter that keeps skid-steer turns gentle, and a feedforward PI velocity controller on VIO and IMU estimates, with every stage stopping on stale input.
 L0 and L2 bypass the planner, which makes them the baselines for measuring what obstacle avoidance adds; L1, L3, L4, and L5 share it.
 L5 puts an on-phone language model above L3 to choose waypoints for a plain-language task, with every waypoint checked by A* and driven on the L3 path; it is implemented but untested on hardware.
-The occupancy map's ground plane is level and placed at the mount-calibrated camera height, a correction found by inspecting labelled point clouds streamed to ARGOS.
+The occupancy map's ground plane is level and placed at the mount-calibrated camera height, a correction found by inspecting labelled point clouds streamed to ARGOS, and ARKit's classified floor mesh now vetoes obstacle returns that lie on the floor; letting wall, window and door mesh stop rays at glass is proposed but untested.
+Against motion capture, the phone's VIO speed was steady, low-noise and correctly oriented but read about 9\% low in the capture room, which the speed loop tolerates and absolute distances do not.
+The faults that most affected driving in October 2026 were timing faults on the phone's control queue, not errors in the control laws: each stale input correctly produced a hold, and the holds compounded.
 Outdoors, a scalar Kalman filter on the VIO-to-north offset fuses compass and GPS course into the heading that turns a geographic bearing into a local goal.
 A separate two-rover prototype registers one rover's occupancy grid onto another's by occupied-cell voting and ICP and fuses them in log odds, but only for display; no rover uses the fused map yet.
 \todo{Add a figure of a recorded planner trace (candidates and selected arc) from a real run.}
