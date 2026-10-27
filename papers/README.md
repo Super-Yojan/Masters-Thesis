@@ -9,5 +9,6 @@ Research questions and metrics are in [`thesis/papers_research_questions.md`](..
 | [`paper1-phone-as-brain/`](paper1-phone-as-brain/) | Phone-as-brain feasibility (single rover) | Introduction and problem formulation drafted |
 | [`paper2-collaborative-slam/`](paper2-collaborative-slam/) | Multi-phone collaborative SLAM / shared maps | Placeholder |
 | [`paper3-fleet-dashboard/`](paper3-fleet-dashboard/) | ARGOS dashboard and attention scheduling | Placeholder |
+| [`paper4-terra-system/`](paper4-terra-system/) | Terra system paper: Swift sensors + Rust core, L0–L5 ladder on a phone (IEEE conference) | Full draft; field evaluation proposed, results TODO |
 
 Robot and application code belongs in [`src/`](../src/).
