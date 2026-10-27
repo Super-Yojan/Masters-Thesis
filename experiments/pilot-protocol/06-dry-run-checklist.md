@@ -12,7 +12,9 @@ Known from the code (ARGOS `763bad7`, Terra `52c1a0d`):
 - `target_search` appears in Terra's `supported_levels` only while a detector publishes fresh classes.
 - L4 Explore is refused in GPS navigation mode ("Switch navigation to Local before exploring").
 
-So "the dashboard can enforce the condition" is **not true today**. Q16 below.
+So "the dashboard can enforce the condition" is **not true today**. Decided (Yojan, 2026-10-27): ARGOS gets a study mode that locks the session to the assigned level, plus a log export button. That work is in progress in a separate ARGOS change; the dry run must use a build that includes it.
+
+- [ ] Study mode: start a session with an assigned condition; every other level button is disabled (stop and L0 takeover stay enabled); the condition is written into the session log; Free leaves L0–L4 enabled.
 
 For each level in the fixed set (Q3):
 
@@ -29,7 +31,7 @@ For each level in the fixed set (Q3):
 
 ## B. Logs, end to end
 
-- [ ] ARGOS `argos-session-*.jsonl` found in the temp directory and copied out before quitting. (No export button in the app; Q17.)
+- [ ] ARGOS `argos-session-*.jsonl` found in the temp directory and saved with the new export button before quitting (Q17).
 - [ ] One Terra run log per rover (TerraPhone "Share run log", or Zorvane `<run_id>.jsonl`), not split by a mid-trial reset.
 - [ ] `terra-run-summary` runs on each Terra log and the numbers match what happened (mode changes, takeovers, near misses).
 - [ ] ARGOS `action_sent` tokens match Terra receipts; teleop sequence numbers line up; no intervention is counted twice.
@@ -51,5 +53,5 @@ For each level in the fixed set (Q3):
 
 ## Gaps that need a decision before the pilot
 
-- **Q16. Enforcing a fixed condition.** Options: (a) a small ARGOS "study mode" that takes a condition, disables the other level buttons (stop and L0 takeover stay enabled), and writes the condition into the session manifest, with Terra's `assigned_level` set from it; (b) enforce by instruction only and log violations from `action_sent`. (a) is a code change in ARGOS and Terra before Oct 31. Not decided.
-- **Q17. Exporting ARGOS logs.** Options: (a) add an "Export session" button, or write the session log to a chosen folder instead of the temp directory; (b) copy the temp file by hand after each trial. Not decided.
+- **Q16. Enforcing a fixed condition.** Options: (a) a small ARGOS "study mode" that takes a condition, disables the other level buttons (stop and L0 takeover stay enabled), and writes the condition into the session manifest, with Terra's `assigned_level` set from it; (b) enforce by instruction only and log violations from `action_sent`. **Decided: (a)**, enforced by an ARGOS study mode (Yojan, 2026-10-27); in progress.
+- **Q17. Exporting ARGOS logs.** Options: (a) add an "Export session" button, or write the session log to a chosen folder instead of the temp directory; (b) copy the temp file by hand after each trial. **Decided: (a)**, an export button (Yojan, 2026-10-27); in progress.
