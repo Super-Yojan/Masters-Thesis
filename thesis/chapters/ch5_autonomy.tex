@@ -23,7 +23,7 @@
 %   #75 (L4 look-around cleared on level change), #76/#77/#78 (ARKit mesh floor veto,
 %   floor walk off the control queue), #80/#81 (3D classification page), #82 (sensor
 %   hold causes, planner window, autonomy brief), #83 (audit fixes); ARGOS #87, #89.
-%   Proposed, not merged on Oct 27: Terra #84 / ARGOS #90 (barrier label for glass).
+%   Terra #84 / ARGOS #90 (barrier label for glass), merged Oct 27, untested on real glass.
 %   Velocity validation: OptiTrack sessions of Oct 26--27, data and scripts in the
 %   project's velocity-experiment folder (analyze_velocity.py, mocap_session).
 % Defaults are software starting values, not calibrated physical limits.
@@ -264,7 +264,7 @@ Two design questions remain open: whether a veto should count as free evidence o
 \label{sec:auto-glass}
 
 The phone's LiDAR sees through clear glass, so the map carves glass walls and doors as free space, and L3 would route through them.
-A proposed change, not merged on October 27, 2026, uses the same classified mesh: faces ARKit labels wall, window or door are sent to the map, and cells with at least three such faces are marked as a \emph{barrier} with a height span.
+A change merged on October 27, 2026 uses the same classified mesh: faces ARKit labels wall, window or door are sent to the map, and cells with at least three such faces are marked as a \emph{barrier} with a height span.
 A depth ray that crosses a barrier cell stops there; the cell is marked occupied and the return gets a new barrier label (Terra PR~\#84, ARGOS PR~\#90).
 This only works where ARKit has put mesh faces on the glass, which a clear pane seen at a shallow angle may not get.
 \todo{Test the barrier on real glass doors and windows; if it misses them, compare remembering bumps and adding an ultrasonic sensor.}
@@ -798,7 +798,7 @@ Publishing the fused map back, so that the frontier explorer of Section~\ref{sec
 Each autonomy level is a different source of intent feeding one shared pipeline: a dynamic-window planner that only accepts commands it can still stop from, a turning limiter that keeps skid-steer turns gentle, and a feedforward PI velocity controller on VIO and IMU estimates, with every stage stopping on stale input.
 L0 and L2 bypass the planner, which makes them the baselines for measuring what obstacle avoidance adds; L1, L3, L4, and L5 share it.
 L5 puts an on-phone language model above L3 to choose waypoints for a plain-language task, with every waypoint checked by A* and driven on the L3 path; it is implemented but untested on hardware.
-The occupancy map's ground plane is level and placed at the mount-calibrated camera height, a correction found by inspecting labelled point clouds streamed to ARGOS, and ARKit's classified floor mesh now vetoes obstacle returns that lie on the floor; letting wall, window and door mesh stop rays at glass is proposed but untested.
+The occupancy map's ground plane is level and placed at the mount-calibrated camera height, a correction found by inspecting labelled point clouds streamed to ARGOS, and ARKit's classified floor mesh now vetoes obstacle returns that lie on the floor; wall, window and door mesh now stops rays at glass, though this is untested on real glass.
 Against motion capture, the phone's VIO speed was steady, low-noise and correctly oriented but read about 9\% low in the capture room, which the speed loop tolerates and absolute distances do not.
 The faults that most affected driving in October 2026 were timing faults on the phone's control queue, not errors in the control laws: each stale input correctly produced a hold, and the holds compounded.
 Outdoors, a scalar Kalman filter on the VIO-to-north offset fuses compass and GPS course into the heading that turns a geographic bearing into a local goal.
