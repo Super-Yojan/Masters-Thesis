@@ -194,10 +194,75 @@ Market-based approaches allocate tasks through auctions and bids among robots~\c
 Collaborative mapping across several robots is the subject of Paper~2 of this thesis.
 \todo{Add collaborative / multi-robot SLAM references for Paper 2.}
 
+\section{Language models for multi-robot supervision}
+\label{sec:bg-llm}
+
+The SubT systems in Section~\ref{sec:bg-disaster} predate large language models (LLMs).
+Since 2023, LLMs have been used to plan for robot teams, to translate an operator's words into fleet commands, and to call robot software through tool interfaces.
+A recent survey groups this work into task allocation, motion planning, action generation, and human intervention, and names latency, hallucination, and the lack of benchmarks as open problems~\citep{li2026llmmrs}.
+Table~\ref{tab:bg-llm} summarizes the systems reviewed here.
+
+\paragraph{LLMs as team planners.}
+Most work places the LLM in the planner's seat: a human states a goal, and the model decomposes it and allocates the parts.
+SMART-LLM decomposes an instruction, forms coalitions, and allocates tasks with few-shot prompts~\citep{kannan2024smartllm}.
+In RoCo, one LLM per robot arm discusses the task with the others and outputs subtasks and waypoints, which a motion planner checks before execution~\citep{mandi2024roco}.
+Chen et al.\ compared four ways of organizing LLM agents and found that a hybrid, with a central planner that receives feedback from an LLM on each robot (HMAS-2), had the highest success rate and scaled best with team size~\citep{chen2024scalable}.
+CoELA adds natural-language communication between agents, and its user study found that agents that communicated earned more trust from human partners~\citep{zhang2024coela}.
+COHERENT uses a central assigner that proposes subtasks and adjusts them from executor feedback, for teams of drones, legged robots, and arms~\citep{liu2025coherent}.
+Two systems address exploration and search, the task closest to this thesis.
+Co-NavGPT merges the robots' maps and lets a vision--language model assign exploration frontiers~\citep{yu2026conavgpt}, and COMRES-VLM assigns waypoints from LiDAR frontiers and doorways, with optional language hints from an operator~\citep{wang2025comresvlm}.
+LLM2Swarm argues for a language model on each robot of a swarm~\citep{strobel2024llm2swarm}.
+
+\paragraph{A human above the LLM.}
+A smaller set keeps a human supervisor in charge.
+In Hunt et al., two robots negotiate routes through an LLM dialogue, and a human can interrupt and must approve the plan before execution~\citep{hunt2024conversational}.
+HMCF has humans check the LLM agents' task verification and step in when needed~\citep{li2025hmcf}.
+HIVE lets one person command up to 2{,}000 agents in a strategy game through conversation, and finds that current models struggle with spatial input and long-term strategy~\citep{anne2025hive}.
+Ji et al.\ turn an operator's voice or sketch input into mission plans for a simulated drone swarm and report lower completion time and workload than a command interface~\citep{ji2025humanswarm}.
+MRPilot structures supervision of an LLM-planned team into forming, reviewing, following, and repairing; in a 20-participant study in a virtual home, it lowered workload and raised situation awareness and trust compared with a chat interface~\citep{yang2026mrpilot}.
+Lakhnati et al.\ frame language control of a robot team as variable autonomy, in a virtual-reality study with 12 participants~\citep{lakhnati2024variable}.
+
+\paragraph{Tool interfaces.}
+ROSA, from NASA JPL, lets an LLM call ROS tools under parameter checks and limits on allowed actions, and was demonstrated on one robot at a time~\citep{royce2025rosa}.
+A Model Context Protocol (MCP) server for ROS bag files found that tool-calling success depends on the tool schema, the number of arguments, and the number of tools offered~\citep{fu2025rosbagmcp}.
+This motivates keeping the ARGOS recommendation interface small and advise-only.
+
+\paragraph{Simulation and hardware.}
+About half of the systems ran on physical robots, but each hardware run was a small indoor demonstration added to results from simulation~\citep{yu2026conavgpt,liu2025coherent,wang2025comresvlm,li2025hmcf}, or a short demonstration with two robots or with one robot at a time~\citep{mandi2024roco,hunt2024conversational,royce2025rosa}.
+Both studies of human operators supervising an LLM-driven team ran in virtual reality~\citep{yang2026mrpilot,lakhnati2024variable}.
+
+\begin{table}[ht]
+\centering
+\caption{LLM systems for multi-robot teams, 2023--2026, compared on the properties ARGOS targets. \checkmark{} = yes, $\circ$ = partly, -- = no or not reported.}
+\label{tab:bg-llm}
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X c c c c c@{}}
+\toprule
+System & \shortstack{Human\\supervises} & \shortstack{Human gates\\LLM output} & \shortstack{LLM advises\\on level} & \shortstack{Tool / MCP\\interface} & \shortstack{Real robots,\\outdoors} \\
+\midrule
+SMART-LLM, HMAS-2, COHERENT, Co-NavGPT~\citep{kannan2024smartllm,chen2024scalable,liu2025coherent,yu2026conavgpt} & -- & -- & -- & -- & -- \\
+RoCo, CoELA, COMRES-VLM~\citep{mandi2024roco,zhang2024coela,wang2025comresvlm} & $\circ$ & -- & -- & -- & -- \\
+LLM2Swarm~\citep{strobel2024llm2swarm} & -- & -- & -- & -- & -- \\
+Hunt et al., HMCF, MRPilot~\citep{hunt2024conversational,li2025hmcf,yang2026mrpilot} & \checkmark & \checkmark & -- & -- & -- \\
+HIVE, Ji et al.~\citep{anne2025hive,ji2025humanswarm} & \checkmark & -- & -- & -- & -- \\
+Lakhnati et al.~\citep{lakhnati2024variable} & \checkmark & -- & $\circ$ & $\circ$ & -- \\
+ROSA, ROSBag MCP~\citep{royce2025rosa,fu2025rosbagmcp} & \checkmark & $\circ$ & -- & \checkmark & -- \\
+\midrule
+ARGOS (planned) & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+To our knowledge, none of these systems has an LLM recommend changes of autonomy level to a human operator who decides, and none records whether each recommendation was accepted.
+The ARGOS recommendation engine is designed to do both: its actions are levels on the ladder of Table~\ref{tab:intro-levels} and a small set of fleet tasks, it reaches the simulator and the real rovers through one MCP interface, and each recommendation and the operator's decision are logged.
+It also splits language models into two tiers, a fleet-level adviser at the operator station and an on-device model on each rover's phone at L5, which resembles the hybrid organization that performed best in simulation~\citep{chen2024scalable}.
+\todo{The recommendation engine is planned, not built; revise this paragraph once it is implemented.}
+\todo{Rerun a literature search for LLMs and autonomy levels in multi-robot supervision before submission.}
+
 \section{Gaps addressed by this thesis}
 \label{sec:bg-gaps}
 
-The work reviewed above leaves four gaps that this thesis targets.
+The work reviewed above leaves five gaps that this thesis targets.
 
 \begin{enumerate}
 \item \textbf{Measured autonomy requirements.}
@@ -213,6 +278,9 @@ The work reviewed above leaves four gaps that this thesis targets.
 \item \textbf{A simple shared operator picture.}
   Field operators asked for one centralized map and simple controls.
   ARGOS provides a single fleet map with one-click autonomy switching and takeover, designed for operators who are not the robot's developers.
+\item \textbf{An LLM adviser over autonomy levels, tested on real robots.}
+  LLM work on robot teams mostly lets the model plan, and the human-operator studies ran in virtual reality (Section~\ref{sec:bg-llm}).
+  ARGOS uses an LLM only to recommend levels and fleet tasks to the operator, logs each decision, and runs the same interface in simulation and on physical rovers outdoors.
 \end{enumerate}
 
 The next chapter describes the competition that provides the study's mission, and the environment built to run it.
