@@ -22,3 +22,5 @@ presentation/.template-build/
 !thesis/thesis_draft.pdf
 !papers/paper1-phone-as-brain/introduction.pdf
 !papers/paper1-phone-as-brain/problem_formulation.pdf
+!papers/paper1-phone-as-brain/conference/main.pdf
+!papers/paper1-phone-as-brain/conference/figures/*.pdf
