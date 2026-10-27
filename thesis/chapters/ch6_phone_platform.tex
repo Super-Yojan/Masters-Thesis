@@ -251,15 +251,15 @@ C2 and C4 are recorded in both Debug and Release builds, because Debug turns off
 
 \begin{table}[ht]
 \centering
-\caption{E2 conditions and results. iOS delivery is $t_{\text{os}} - t_{\text{sensor}}$ for the bare logger. First capture: October 27, 2026, Debug build.}
+\caption{E2 conditions and results. iOS delivery is $t_{\text{os}} - t_{\text{sensor}}$ for the bare logger. C0 and C1 are a short pilot (about 10~s and 7~s from one capture on October 27, 2026, Debug build), not the planned two minutes each.}
 \label{tab:phone-timing}
 \small
 \begin{tabularx}{\textwidth}{@{}l X r r X@{}}
 \toprule
 Code & Load & IMU rate & Delivery p50 / p99 & Notes \\
 \midrule
-C0 & Bare IMU only & 99.4~Hz & 3.4 / 4.1~ms & Clean \\
-C1 & + ARKit, LiDAR depth, mesh & $\approx$100~Hz & 1.1 / 3.0~ms & One 1.17~s stall while the AR session started: 113 samples held, then delivered in a burst \\
+C0 & Bare IMU only & 99.4~Hz & 3.4 / 4.1~ms & Pilot, 0--10~s; clean \\
+C1 & + ARKit, LiDAR depth, mesh & $\approx$100~Hz & 1.1 / 3.0~ms & Pilot, 11.6--19~s; one 1.17~s stall while the AR session started: 113 samples held, then delivered in a burst \\
 C2 & Terra tracking on & pending & pending & Debug and Release \\
 C3 & + YOLO detector & pending & pending & \\
 C4 & + FPV video & pending & pending & Debug and Release \\
@@ -268,7 +268,7 @@ C5 & + driving L2/L3 straight lines & pending & pending & \\
 \end{tabularx}
 \end{table}
 
-The first result answers half of R5.
+The pilot answers half of R5, with the caveat that it covers under 20~s and must be repeated at full length.
 In steady state iOS delivers IMU samples at the requested 100~Hz within 4~ms even with ARKit and LiDAR running, so iOS itself leaves almost all of the 0.1~s budget to the app.
 The exception is the start of an AR session, when iOS held samples for 1.17~s.
 That alone would trip the stale-IMU gate, so the rover must not be allowed to drive until tracking has run for a few seconds.
@@ -366,10 +366,10 @@ R8 passes if CEP95 $\le$ 10~m on the open field.
 \paragraph{Protocol (pending).}
 One 90-minute run with the full stack on: tracking, LiDAR depth and mesh, mapping, the detector, FPV to ARGOS and GPS.
 It is done twice, indoors on the bench with the wheels off the ground, and outdoors on the field in daylight, both starting from a full charge and a cool phone.
-The sensor-timing probe already records the iOS thermal state (nominal, fair, serious, critical) and low-power mode; battery level must be added to its record.
+The sensor-timing probe records the iOS thermal state (nominal, fair, serious, critical), low-power mode, and battery level and charging state at the start and on every change (Terra PR~\#90).
 Metrics, per minute: battery level; thermal state; detector frames per second; control-tick lateness p99; stale-IMU holds.
 R9 passes if the phone never reaches \emph{critical}, has battery left at 90 minutes, and the detector rate and tick lateness at the end are within 20\% of the first ten minutes.
-\todo{Add battery level to the sensor-timing probe's meta row, then run E6.}
+\todo{Run E6 once Terra PR~\#90 is merged and built.}
 
 \section{Verdict so far}
 \label{sec:phone-verdict}
@@ -389,7 +389,7 @@ R1 VIO scale & Fail as measured & 0.91 in the mocap room; E1b decides whether a 
 R2 VIO noise & Pass & E1 \\
 R3 VIO delay & Pass & E1 \\
 R4 Heading (VIO) & Pass & E1; compass part pending in E5 \\
-R5 IMU delivery & Pass in steady state; startup stall & E2 C0--C1; Terra load pending \\
+R5 IMU delivery & Pass in steady state; startup stall & E2 C0--C1 pilot ($<$20~s); full runs and Terra load pending \\
 R6 Depth & Pending & Failure cases known; accuracy from E3 \\
 R7 Detection & Fail in simulation & Shaded and raised buckets; confidence below confirm threshold; real-world pending \\
 R8 GNSS & Pending & E5 \\
