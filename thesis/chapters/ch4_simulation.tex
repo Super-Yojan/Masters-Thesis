@@ -136,11 +136,25 @@ The two game actions, load and dump, are also Zenoh topics, and \texttt{next/sta
 
 Zorvane runs as a desktop application with a start menu, in which the user picks the number of rovers, followed by a narrated cutscene of the rules.
 It also runs headless, with no window, for automated checks.
-Release builds for macOS, Windows, and Linux are produced by continuous integration from a version tag, so an operator or study participant can run the simulator without a Rust toolchain.
+Release builds for macOS, Windows, and Linux are produced by continuous integration from a version tag, so an operator or study participant can run the simulator without a Rust toolchain; the first tag is v0.1.0, from October 24, 2026.
 Environment variables select the rover count, the topic prefix and listener, the bucket seed, the lighting, extra balls, the camera view, and whether video is on.
 
 For a study session the simulator can connect to the same authenticated cloud router as the real fleet, under its own prefix, so that the operator station is configured once.
 \todo{Describe the exact session setup for simulated trials: local listener or cloud router, rover count, seed list.}
+
+\subsection{An AI model as a player}
+\label{sec:sim-mcp}
+
+Zorvane can also be played by a language model instead of a person (Zorvane PR~\#26, open and unmerged at the time of writing).
+A small server exposes one rover through the Model Context Protocol (MCP), so any MCP client can call it as a set of tools: read the match state and score, look through the forward camera as an image, read the occupancy map as text, choose an autonomy level from L0 to L4, send a waypoint goal at L2 or L3, drive a teleoperation burst of at most 5~s at up to 2~m/s, stop, and press the NEXT load and dump buttons.
+Bucket positions are not exposed, so the model has to find buckets by looking.
+The server uses the same Zenoh topics and the same run and authority binding as ARGOS, so the model's commands pass the rover's checks exactly as an operator's do.
+In a headless test run, a model client read the match state, took a camera image, drove, changed level, and reached an L2 goal; L3 goals and the text map were not verified, because the software-rendered run published no occupancy map, and loading and dumping were not exercised.
+
+This differs from L5 (Section~\ref{sec:auto-l5}).
+In L5 the model runs on the phone and only proposes waypoints to the arbiter; here the model runs off-board and plays the role of the operator, including the choice of autonomy level.
+That makes it a way to study level choice itself: a model, or a learned policy, can choose the level for each phase of a match, and its choices can be compared with an operator's.
+\todo{Merge the MCP server, verify L3 goals and the map on a GPU machine, and decide whether model-played matches become part of the evaluation.}
 
 \section{Logging and repeatability}
 \label{sec:sim-logging}

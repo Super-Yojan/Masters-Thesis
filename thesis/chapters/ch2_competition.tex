@@ -143,7 +143,7 @@ An iPhone rides on the rover and runs TerraPhone, a Swift application around the
 The phone provides every sensor the autonomy uses: the rear camera and ARKit visual--inertial pose, depth where the handset has it, the Core Motion IMU, GPS, and the compass.
 The Rust core holds state estimation, a rolling local occupancy map (200~$\times$~200 cells at 0.1~m, so 20~$\times$~20~m), the control-authority arbiter, the planners, and velocity control.
 The control loop ticks every 10~ms, and wheel commands go out every fifth tick, at 20~Hz.
-The arbiter is the single owner of motion: teleoperation, assisted teleoperation, the two waypoint levels, exploration, and target search all pass through it, and an emergency stop latches until an explicit, healthy reset.
+The arbiter is the single owner of motion: teleoperation, assisted teleoperation, the two waypoint levels, exploration, target search, and task autonomy all pass through it, and an emergency stop latches until an explicit, healthy reset.
 
 The phone does not run a second planner when it supervises the simulator; in that mode it sends goals and control intent to Zorvane instead.
 Depthless handsets hold any level that needs a map.
@@ -154,8 +154,9 @@ Depthless handsets hold any level that needs a map.
 The phone cannot drive motors directly, so a Raspberry Pi~4 with a SunFounder Fusion HAT acts as a motor bridge.
 The phone sends normalized wheel effort to the Pi over Bluetooth Low Energy; the Pi applies it to motor ports or to PWM outputs for electronic speed controllers (ESCs).
 The Pi runs no autonomy and none of the Rust crates.
-It enforces its own safety independently of the phone: a 200~ms command watchdog, an explicit arm step, a hardware gate, and an external battery cutoff that the Pi cannot override.
-Zero effort coasts, and a dropped enable also coasts; neither brakes.
+It holds each drive command for 250~ms and then sets every output to its safe value, and an external battery cutoff removes motor power independently of both computers.
+Zero effort coasts; it does not brake.
+Section~\ref{sec:rover-electronics} describes how the Pi's own safety duties changed in October 2026.
 Chapter~\ref{ch:rover} describes the hardware in detail, including the planned replacement of the Pi by a microcontroller attached to the phone over USB.
 
 \subsection{The operator station}
@@ -166,6 +167,16 @@ For NEXT the laptop sits in the alliance's Base, which is where the rules allow 
 ARGOS shows each rover on one map over satellite imagery with its GPS fix and accuracy, a local occupancy map, first-person video over WebRTC, and the autonomy controls.
 The operator selects Local or Outdoor GPS navigation and an autonomy level, sends goals by clicking the map, arms or disarms the hardware, and has stop and L0 manual control one click away.
 ARGOS binds every non-neutral command to the rover's current run and authority revision, so a stale command from before a takeover or a reset is rejected by the vehicle rather than acted on.
+
+Several changes in late October 2026 shaped how the operator works with it.
+A goal is set with a single click on the map, which opens a confirm popup anchored to that point; nothing is sent until the operator presses Send goal, and a drag still pans the map.
+The local occupancy grid is drawn on the main map under the rover, in the same frame as its goals, so a rover placed by GPS can also take local goals by a click on its grid; the separate local-map tab was removed.
+When manual driving is refused, ARGOS names the failing check (no status yet, an unanswered command, stale status and its age, an active stop, a Terra hold with its reason, or a non-manual level) instead of one generic error.
+The navigation panel shows the reported heading uncertainty and its age against the outdoor limits.
+A Sim/Real toggle reconnects the whole dashboard to the simulator or to the real fleet at runtime, so one session can switch between Zorvane and a rover.
+Capture~3D and Live~3D show the rover's labelled depth points, which is how the operator can see what the mapper thinks is ground and obstacle (Section~\ref{sec:auto-capture}).
+A Task panel sends an L5 task and shows the model's plan, questions and recent steps (Section~\ref{sec:auto-l5}).
+ARGOS has a user documentation site and downloadable builds for macOS, Windows and Linux, produced from a version tag; the first release is v0.1.0.
 
 \subsection{Outdoor GPS navigation and heading}
 \label{sec:env-gps}
@@ -198,6 +209,7 @@ Exploration reports elapsed and remaining time, the current target, and the obse
 
 In the ladder of Table~\ref{tab:intro-levels}, exploration and target search together make up L4: exploration covers ground, target search confirms objects in it.
 ARGOS offers the two as separate controls, ``L4 Explore'' and ``Search''; both are reported as L4.
+Above them, the L5 \texttt{task} level lets an on-phone language model choose waypoints for a task typed by the operator; it is implemented but has not yet run on a phone, and it is not part of the pilot study (Section~\ref{sec:auto-l5}).
 
 \subsection{Zorvane: the NEXT field twin}
 \label{sec:env-zorvane}

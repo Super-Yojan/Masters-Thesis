@@ -132,18 +132,28 @@ The phone sends normalized actuator commands over Bluetooth Low Energy; the Pi v
 The Pi software is a single compiled ARM64 executable, so no Python installation or source checkout is needed on the rover.
 A configurable layout of up to 16 actuators maps commands to outputs of four kinds: DC motors (signed effort), bidirectional ESCs (reverse, neutral, and forward pulse widths), unidirectional ESCs, and positional servos.
 ESC and servo outputs use 50~Hz pulses, and the DC motor channels use a separate 100~Hz timer group so that the two do not share a timer.
+The bridge always offers all of the HAT's channels, the four motor ports M0--M3 and the twelve PWM outputs P0--P11, and the saved layout alone decides which are opened; layout validation rejects two actuators on one pin and mixed timer groups.
+
+Two faults found on the bench in October 2026 are worth recording, because both looked like control problems and were not (Terra PR~\#69).
+First, the HAT's kernel driver rejects a duty-cycle write to a disabled channel, and the vendor library disables a channel whenever any stale object for it is destroyed; the DC motor path never re-enabled its channels, so a four-motor rover faulted on every wheel.
+The bridge now owns its channels' lifetime and re-enables once and retries on that error.
+Second, the bridge used each drive command for one 50~ms output loop and sent neutral on any loop without a fresh packet, while the phone also sent every 50~ms; Bluetooth jitter therefore alternated drive and stop, and the rover shuddered.
+The bridge now holds the latest command for 250~ms before going to neutral.
 
 \subsection{Safety in the hardware path}
 
 Because nobody may touch the rover outside the Base, the hardware path must fail safe on its own.
-The Pi enforces, independently of the phone:
+In the relay as of late October 2026 the Pi enforces, independently of the phone:
 
 \begin{itemize}
-\item an explicit arm step; connecting or pairing never arms the motors;
-\item a 200~ms command watchdog, after which outputs go to their safe state;
+\item a 250~ms command lease, after which outputs go to their safe state; an explicit neutral command, a Bluetooth disconnect, a fault or a layout change stop at once;
 \item a safe state per output kind: zero power for DC motors, a continuous neutral or stop pulse for ESCs (never a zero-width pulse, which some ESCs read as a fault), and a configured safe position for servos;
 \item an external battery cutoff switch that removes motor power and that the Pi cannot override.
 \end{itemize}
+
+An earlier version of the bridge also kept its own arm state and read a hardware gate input, with a 200~ms watchdog.
+The relay was simplified on October 23, 2026: the Bluetooth protocol still carries arm and disarm frames, but the relay holds no arm state of its own and reads no gate, and Terra's hardware documentation still describes the older design.
+\todo{Decide where arming is enforced now (phone, Rust core, or Pi), state it here, and bring Terra's hardware documentation in line with the relay.}
 
 Zero effort coasts rather than brakes.
 The Raspberry Pi image used on the rover adds a fallback Wi-Fi hotspot and SSH over the USB-C port, so a technician at the Base can reach the Pi without the field network.
