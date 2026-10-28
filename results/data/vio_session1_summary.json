@@ -1,0 +1,148 @@
+{
+  "settings": {
+    "fc_hz": 0.4,
+    "kp": 0.3,
+    "heading_offset_rad": 0.30935816065687605,
+    "phone_log_rate_hz": 7.902927053991246,
+    "body": "chassis",
+    "up": null,
+    "alignment": {
+      "method": "wall clock only",
+      "windows": 0
+    },
+    "note": "latency is relative to the phone gyro, which sets the clock alignment"
+  },
+  "all_takes": {
+    "scale": 0.8113,
+    "intercept": 0.0013,
+    "pass_P2": false
+  },
+  "takes": [
+    {
+      "take": "B_v0.3_r1",
+      "duration_s": 21.4,
+      "clock_offset_s": 912678.3522,
+      "gyro_sign": 1,
+      "not_ready_fraction": 0.0,
+      "dropouts": 0,
+      "longest_dropout_s": 0.0,
+      "speed_bins": [
+        {
+          "speed": 0.0,
+          "seconds": 14.0,
+          "bias": 0.0009,
+          "std": 0.0028
+        },
+        {
+          "speed": 0.05,
+          "seconds": 1.4,
+          "bias": 0.0015,
+          "std": 0.0113
+        }
+      ],
+      "noise_in_band": 0.0003,
+      "noise_out_band": 0.0004,
+      "effort_chatter": 0.0001,
+      "latency_s": 0.0685,
+      "latency_corr": 0.999,
+      "yaw_bias": 0.0002,
+      "clock_match": NaN,
+      "clock_match_next": NaN,
+      "verdicts": {
+        "P1 bias": true,
+        "P3 in-band noise": true,
+        "P4 effort chatter": true,
+        "P5 sensor delay < 382 ms budget": true,
+        "P7 dropouts": true
+      }
+    },
+    {
+      "take": "B_v0.3_r2",
+      "duration_s": 21.3,
+      "clock_offset_s": 912678.3522,
+      "gyro_sign": 1,
+      "not_ready_fraction": 0.0,
+      "dropouts": 0,
+      "longest_dropout_s": 0.0,
+      "speed_bins": [
+        {
+          "speed": 0.0,
+          "seconds": 4.4,
+          "bias": 0.0004,
+          "std": 0.0051
+        },
+        {
+          "speed": 0.05,
+          "seconds": 1.8,
+          "bias": -0.0081,
+          "std": 0.0088
+        },
+        {
+          "speed": 0.25,
+          "seconds": 1.9,
+          "bias": -0.0301,
+          "std": 0.0143
+        },
+        {
+          "speed": 0.35,
+          "seconds": 6.6,
+          "bias": -0.0644,
+          "std": 0.0182
+        },
+        {
+          "speed": 0.4,
+          "seconds": 0.9,
+          "bias": -0.0753,
+          "std": 0.0113
+        }
+      ],
+      "scale": 0.8105,
+      "intercept": 0.0015,
+      "noise_in_band": 0.0066,
+      "noise_out_band": 0.0118,
+      "effort_chatter": 0.0035,
+      "latency_s": 0.0534,
+      "latency_corr": 0.99,
+      "yaw_bias": -0.0002,
+      "clock_match": NaN,
+      "clock_match_next": NaN,
+      "verdicts": {
+        "P1 bias": false,
+        "P2 scale": false,
+        "P3 in-band noise": true,
+        "P4 effort chatter": true,
+        "P5 sensor delay < 382 ms budget": true,
+        "P7 dropouts": true
+      }
+    },
+    {
+      "take": "E_left_r1",
+      "duration_s": 24.0,
+      "clock_offset_s": 912678.3522,
+      "gyro_sign": 1,
+      "not_ready_fraction": 0.0,
+      "dropouts": 0,
+      "longest_dropout_s": 0.0,
+      "speed_bins": [
+        {
+          "speed": 0.0,
+          "seconds": 6.0,
+          "bias": 0.0025,
+          "std": 0.0082
+        }
+      ],
+      "latency_s": 0.0514,
+      "latency_corr": 0.098,
+      "yaw_bias": 0.0014,
+      "yaw_scale": 0.3352,
+      "turning_forward_bias": -0.2962,
+      "clock_match": NaN,
+      "clock_match_next": NaN,
+      "verdicts": {
+        "P1 bias": true,
+        "P5 sensor delay < 382 ms budget": true,
+        "P7 dropouts": true
+      }
+    }
+  ]
+}
