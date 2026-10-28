@@ -1,0 +1,303 @@
+{
+ "plant_fit": {
+  "rms_mps": 0.0306,
+  "K_phone": 0.95,
+  "K_true": 1.0795,
+  "deadband": 0.06,
+  "tau_s": 0.02,
+  "delay_s": 0.2,
+  "K_phone_range_within_2pct": [
+   0.85,
+   1.03
+  ],
+  "deadband_range": [
+   0.03,
+   0.09
+  ],
+  "delay_range": [
+   0.15,
+   0.2
+  ],
+  "tau_range": [
+   0.02,
+   0.08
+  ]
+ },
+ "steady_effort_at_0p3": [
+  0.3833,
+  0.3953
+ ],
+ "rise90_s": {
+  "as_built": 3.94,
+  "ff_matched": 0.36
+ },
+ "startup": {
+  "0.05": {
+   "first_motion_s": 1.52,
+   "rise90_s": 5.77
+  },
+  "0.1": {
+   "first_motion_s": 0.37,
+   "rise90_s": 4.77
+  },
+  "0.2": {
+   "first_motion_s": 0.22,
+   "rise90_s": 4.19
+  },
+  "0.3": {
+   "first_motion_s": 0.22,
+   "rise90_s": 3.94
+  }
+ },
+ "margins": [
+  {
+   "case": "As built, Release (100 Hz)",
+   "kp": 0.3,
+   "ki": 0.6,
+   "K_loop": 0.95,
+   "delay_ms": 290.0,
+   "wc": 0.5945,
+   "fc_hz": 0.0946,
+   "pm_deg": 94.9736,
+   "dm_ms": 2788.1662,
+   "w180": 8.588,
+   "f180_hz": 1.3668,
+   "gm_db": 11.0791,
+   "kpK": 0.285
+  },
+  {
+   "case": "As built, Debug (17 Hz)",
+   "kp": 0.3,
+   "ki": 0.6,
+   "K_loop": 0.95,
+   "delay_ms": 436.4706,
+   "wc": 0.5945,
+   "fc_hz": 0.0946,
+   "pm_deg": 89.9844,
+   "dm_ms": 2641.6956,
+   "w180": 5.7774,
+   "f180_hz": 0.9195,
+   "gm_db": 10.5977,
+   "kpK": 0.285
+  },
+  {
+   "case": "As built, VIO scale 0.60",
+   "kp": 0.3,
+   "ki": 0.6,
+   "K_loop": 0.6477,
+   "delay_ms": 290.0,
+   "wc": 0.3961,
+   "fc_hz": 0.063,
+   "pm_deg": 93.4866,
+   "dm_ms": 4118.8053,
+   "w180": 8.588,
+   "f180_hz": 1.3668,
+   "gm_db": 14.4057,
+   "kpK": 0.1943
+  },
+  {
+   "case": "As built, VIO scale 1.00",
+   "kp": 0.3,
+   "ki": 0.6,
+   "K_loop": 1.0795,
+   "delay_ms": 290.0,
+   "wc": 0.6844,
+   "fc_hz": 0.1089,
+   "pm_deg": 95.5586,
+   "dm_ms": 2436.9214,
+   "w180": 8.588,
+   "f180_hz": 1.3668,
+   "gm_db": 9.9688,
+   "kpK": 0.3239
+  },
+  {
+   "case": "Design assumption, $K$ = 3 m/s",
+   "kp": 0.3,
+   "ki": 0.6,
+   "K_loop": 3.0,
+   "delay_ms": 290.0,
+   "wc": 3.9267,
+   "fc_hz": 0.625,
+   "pm_deg": 76.5545,
+   "dm_ms": 340.2672,
+   "w180": 8.588,
+   "f180_hz": 1.3668,
+   "gm_db": 1.0912,
+   "kpK": 0.9
+  },
+  {
+   "case": "Profile rule with top\\_speed 1.0",
+   "kp": 0.9,
+   "ki": 1.8,
+   "K_loop": 0.95,
+   "delay_ms": 290.0,
+   "wc": 3.2174,
+   "fc_hz": 0.5121,
+   "pm_deg": 85.4791,
+   "dm_ms": 463.6906,
+   "w180": 8.588,
+   "f180_hz": 1.3668,
+   "gm_db": 1.5367,
+   "kpK": 0.855
+  },
+  {
+   "case": "Profile rule, Debug (17 Hz)",
+   "kp": 0.9,
+   "ki": 1.8,
+   "K_loop": 0.95,
+   "delay_ms": 436.4706,
+   "wc": 3.2174,
+   "fc_hz": 0.5121,
+   "pm_deg": 58.478,
+   "dm_ms": 317.22,
+   "w180": 5.7774,
+   "f180_hz": 0.9195,
+   "gm_db": 1.0553,
+   "kpK": 0.855
+  },
+  {
+   "case": "Matched feedforward, kp 0.3, ki 0.6",
+   "kp": 0.3,
+   "ki": 0.6,
+   "K_loop": 0.95,
+   "delay_ms": 290.0,
+   "wc": 0.5945,
+   "fc_hz": 0.0946,
+   "pm_deg": 94.9736,
+   "dm_ms": 2788.1662,
+   "w180": 8.588,
+   "f180_hz": 1.3668,
+   "gm_db": 11.0791,
+   "kpK": 0.285
+  }
+ ],
+ "old_budget_ms": 381.9444,
+ "delay_budget_ms": {
+  "release": 290.0,
+  "debug": 436.4706,
+  "components": {
+   "Motor, ESC and link (fit)": [
+    200.0,
+    200.0
+   ],
+   "VIO behind gyro": [
+    60.0,
+    60.0
+   ],
+   "Motor write hold (5 ticks / 2)": [
+    25.0,
+    147.0588
+   ],
+   "Tick (1/2)": [
+    5.0,
+    29.4118
+   ]
+  }
+ },
+ "gate_hold_integral": 0.855,
+ "gate_hold_ramp_rate": 0.18,
+ "gate_release": {
+  "peak_true_mps": 1.0148,
+  "peak_after_s": 0.51,
+  "target_true_mps": 0.3409
+ },
+ "periodic_reset": {
+  "2.0": 0.176,
+  "1.05": 0.1358,
+  "0.5": 0.0937,
+  "none": 0.3409
+ },
+ "mini": [
+  {
+   "true_deadband": 0.3,
+   "gm_db": 2.2015,
+   "f180_hz": 1.3668,
+   "relay_h": 0.0,
+   "pred_amplitude_effort": 0.0,
+   "sim_speed_pp": 0.0,
+   "sim_freq_hz": null,
+   "wc": 2.5652,
+   "pm": 92.0975
+  },
+  {
+   "true_deadband": 0.2,
+   "gm_db": 3.3614,
+   "f180_hz": 1.3668,
+   "relay_h": 0.1429,
+   "pred_amplitude_effort": 0.3849,
+   "sim_speed_pp": 0.5691,
+   "sim_freq_hz": 1.3342,
+   "wc": 1.9137,
+   "pm": 96.4613
+  },
+  {
+   "true_deadband": 0.1,
+   "gm_db": 4.3844,
+   "f180_hz": 1.3668,
+   "relay_h": 0.2857,
+   "pred_amplitude_effort": 0.554,
+   "sim_speed_pp": 0.8396,
+   "sim_freq_hz": 1.4009,
+   "wc": 1.56,
+   "pm": 97.5671
+  }
+ ],
+ "yaw": [
+  {
+   "K_psi": 1.6,
+   "yaw_wc": 0.4862,
+   "yaw_pm": 92.2416,
+   "yaw_gm_db": 15.8613,
+   "yaw_dm_ms": 3310.9499,
+   "head_wc": 0.9561,
+   "head_pm": 56.9047,
+   "head_gm_db": 17.7205,
+   "head_dm_ms": 1038.8138
+  },
+  {
+   "K_psi": 5.0,
+   "yaw_wc": 1.7307,
+   "yaw_pm": 95.191,
+   "yaw_gm_db": 5.9643,
+   "yaw_dm_ms": 959.9733,
+   "head_wc": 1.8976,
+   "head_pm": 75.6957,
+   "head_gm_db": 7.7602,
+   "head_dm_ms": 696.2146
+  }
+ ],
+ "l3_heading": [
+  {
+   "K_psi": 1.6,
+   "cruise": 0.3,
+   "limiter": true,
+   "overshoot_deg": 3.0688,
+   "settle_3deg_s": 6.08,
+   "peak_yaw_rate": 0.2434
+  },
+  {
+   "K_psi": 1.6,
+   "cruise": 1.0,
+   "limiter": true,
+   "overshoot_deg": 3.8244,
+   "settle_3deg_s": 4.88,
+   "peak_yaw_rate": 0.3171
+  },
+  {
+   "K_psi": 5.0,
+   "cruise": 1.0,
+   "limiter": true,
+   "overshoot_deg": 0.0,
+   "settle_3deg_s": 1.8,
+   "peak_yaw_rate": 0.5817
+  },
+  {
+   "K_psi": 1.6,
+   "cruise": 1.0,
+   "limiter": false,
+   "overshoot_deg": 2.904,
+   "settle_3deg_s": 2.02,
+   "peak_yaw_rate": 0.3088
+  }
+ ]
+}
