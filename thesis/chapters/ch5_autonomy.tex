@@ -600,12 +600,12 @@ Deciding what the \emph{fleet} needs, the original meaning of the level, is not 
 \toprule
 Level & Intent $(v_i, \omega_i)$ & Local planner & Human role \\
 \midrule
-L0 Teleop & Operator command, 0.5~s lease & Bypassed & Closes the loop \\
+L0 Manual & Operator command, 0.5~s lease & Bypassed & Closes the loop \\
 L1 Assisted & Operator command & Eq.~\eqref{eq:planner-cost} & Drives; planner vetoes \\
 L2 Direct & Pursuit, Eq.~\eqref{eq:pursuit}, to goal & Bypassed & Sets goal; watches \\
-L3 Waypoint & Pursuit along A* route & Eq.~\eqref{eq:planner-cost} & Sets goal \\
+L3 Planned & Pursuit along A* route & Eq.~\eqref{eq:planner-cost} & Sets goal \\
 L4 Explore & Pursuit to $f^\ast$, Eq.~\eqref{eq:frontier} & Eq.~\eqref{eq:planner-cost}, $H = 1$~s & Sets budget \\
-L4 Search & Pursuit to frontier in bounds; confirmation rule & Eq.~\eqref{eq:planner-cost} & Sets area, class, budget \\
+L4 Explore $\cdot$ search & Pursuit to frontier in bounds; confirmation rule & Eq.~\eqref{eq:planner-cost} & Sets area, class, budget \\
 L5 Task & Pursuit along A* route to model-chosen waypoints & Eq.~\eqref{eq:planner-cost} & Gives task; answers questions \\
 \bottomrule
 \end{tabularx}

@@ -48,18 +48,18 @@ Each level adds one responsibility to the robot and removes one from the human.
 
 \begin{table}[ht]
 \centering
-\caption{Autonomy levels used in this thesis. Runtime names are the values the ARGOS operator application publishes to Terra.}
+\caption{Autonomy levels used in this thesis. Names are the labels on the ARGOS and TerraPhone level buttons (for example ``L3 Planned''); runtime names are the values ARGOS publishes to Terra.}
 \label{tab:intro-levels}
 \begin{tabularx}{\textwidth}{@{}l l X l@{}}
 \toprule
 Level & Name & Robot does & Runtime name \\
 \midrule
-L0 & Full teleoperation & Nothing on its own; the human controls all motion. & \texttt{teleop} \\
-L1 & Assisted teleoperation & The human drives; the rover prevents collisions. & \texttt{assisted\_teleop} \\
-L2 & Waypoint, no avoidance & Drives from A to B along predefined waypoints. & \texttt{waypoint\_direct} \\
-L3 & Waypoint, with avoidance & Navigates from A to B and stops for or avoids obstacles. & \texttt{waypoint} \\
-L4 & Explore and search & Explores an area autonomously and confirms targets. & \texttt{explore}, \texttt{target\_search} \\
-L5 & Decision making & Takes a task in plain language and decides its own next waypoints; fleet-level decisions remain future work. & \texttt{task} \\
+L0 & Manual (full teleoperation) & Nothing on its own; the human controls all motion. & \texttt{teleop} \\
+L1 & Assisted (assisted teleoperation) & The human drives; the rover prevents collisions. & \texttt{assisted\_teleop} \\
+L2 & Direct (waypoint, no avoidance) & Drives from A to B along predefined waypoints. & \texttt{waypoint\_direct} \\
+L3 & Planned (A* route, with avoidance) & Navigates from A to B and stops for or avoids obstacles. & \texttt{waypoint} \\
+L4 & Explore (explore and search) & Explores an area autonomously and confirms targets. & \texttt{explore}, \texttt{target\_search} \\
+L5 & Task (decision making) & Takes a task in plain language and decides its own next waypoints; fleet-level decisions remain future work. & \texttt{task} \\
 \bottomrule
 \end{tabularx}
 \end{table}
