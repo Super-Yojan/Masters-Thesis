@@ -1,0 +1,657 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,decorations.pathreplacing,calc}
+\usepackage[hidelinks]{hyperref}
+
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+\newcommand{\tsens}{t_{\text{sensor}}}
+\newcommand{\tos}{t_{\text{os}}}
+\newcommand{\tqueue}{t_{\text{queue}}}
+\newcommand{\tdone}{t_{\text{done}}}
+
+\begin{document}
+
+\title{Autonomy Is Not Free Attention}
+
+\author{\IEEEauthorblockN{Yojan Gautam}
+\IEEEauthorblockA{George Mason University\\
+ygautam2@gmu.edu}
+}
+
+\maketitle
+
+\begin{abstract}
+
+
+\end{abstract}
+
+\begin{IEEEkeywords}
+human–robot interaction, supervisory control, multi-robot systems, operator workload, attention allocation
+\end{IEEEkeywords}
+
+% =====================================================================
+\section{Introduction}
+\label{sec:intro}
+The desire to delegate work to machines predates computing itself.
+Wiener's cybernetics framed machines as systems that could close
+their own control loops through feedback, freeing the human from
+moment-to-moment regulation~\cite{wiener1948cybernetics}. As machines
+became capable of acting on their own, the human's role shifted from
+\emph{operator} to \emph{supervisor}: someone who sets goals,
+monitors progress, and intervenes when the machine cannot cope
+\cite{sheridan1992telerobotics}. Autonomy is now commonly described
+not as a binary property but as a spectrum of levels and stages,
+each allocating a different share of sensing, decision, and action
+to the machine~\cite{parasuraman2000model}.
+
+This shift carries an appealing promise. If each agent needs less
+of its operator, then one operator should be able to supervise more
+agents. Olsen and Wood formalized this idea as \emph{fan-out}, the
+number of robots a single human can effectively control, and showed
+that it grows with how long a robot can be left unattended relative
+to how long it takes to service~\cite{olsen2004fanout}. Crandall
+\emph{et al.}\ grounded this in the notions of \emph{neglect time}
+(NT) and \emph{interaction time} (IT)~\cite{crandall2005validating},
+and later work extended the model to account for the time robots
+spend waiting for an operator who is busy
+elsewhere~\cite{cummings2008predicting} and to identify which metrics
+predict team performance~\cite{crandall2007identifying}. Recent field
+studies suggest that, with sufficiently capable autonomy, a single
+operator can deploy a swarm of 100 heterogeneous ground and aerial
+robots~\cite{adams2023single}, and new planning
+approaches treat the operator explicitly as a scarce resource to be
+allocated across a fleet~\cite{costen2024multirobot}. The implicit
+assumption across much of this work is that more autonomy yields
+longer neglect time and therefore higher fan-out: attention becomes
+cheaper as agents become more capable.
+
+Human factors research has long cautioned against this assumption.
+Bainbridge's \emph{ironies of automation} observed that automating a
+task does not remove the human; it leaves them with the hardest
+residual work, monitoring a system they no longer actively control
+and taking over precisely when it fails~\cite{bainbridge1983ironies}.
+Operators removed from the control loop lose situation awareness and
+respond more slowly and less accurately when they must
+re-engage~\cite{endsley1995outoftheloop}. A meta-analysis across
+studies that varied the degree of automation found that higher
+automation improves routine performance and reduces workload, but
+degrades situation awareness and performance when the automation
+fails~\cite{onnasch2014human}, a pattern summarized as the
+``lumberjack effect.'' Partially automated driving offers a familiar
+illustration: at SAE Level~2, the vehicle steers and controls speed,
+yet the driver remains responsible for continuously supervising it
+and taking over immediately when needed~\cite{sae2021j3016}. The
+work of driving is not eliminated; it becomes the work of watching.
+
+A key reason this residual work is costly is that higher autonomy
+hides more of the agent's decision-making. When a capable agent acts
+on its own, the operator often cannot see \emph{why} it did what it
+did. Intervening effectively then requires first reconstructing the
+agent's current plan, its reasoning, and its expected outcome, the
+three levels of information that the Situation Awareness-based Agent
+Transparency (SAT) model identifies as necessary for effective
+human--agent teaming~\cite{chen2018situation}. How much that
+reconstruction costs depends on who the operator is. An engineer who
+built the system carries a mental model of its planner, its failure
+modes, and its quirks, and can often infer what an agent is doing
+from a few cues. The people expected to supervise deployed fleets,
+such as first responders or field technicians, usually lack that
+model and must rebuild the agent's reasoning from what the interface
+shows them. Existing evidence for high fan-out does not test this
+operator over a full shift. The field demonstration in which one
+commander deployed a swarm of 100 heterogeneous robots relied on two
+core team members who were also the system's
+developers~\cite{adams2023single}. Laboratory studies, by contrast,
+recruit mostly students and other
+novices~\cite{hocraffer2017metaanalysis,reybecerra2026mastering,crandall2011computing},
+but test them in simplified simulations for sessions of 10 to 30
+minutes~\cite{clare2010assessing,cummings2008predicting}, in one case
+compressing a strike that would take several hours into half an
+hour~\cite{cummings2008predicting}. Neither setting measures how many
+agents a person who did not build the system can supervise over a
+full working shift.
+
+Session length matters because sustained monitoring is effortful.
+Vigilance declines with time on watch~\cite{warm2008vigilance}, and higher autonomy
+can itself induce fatigue-like states of monotony and reduced
+vigilance, because the operator is left with less to
+do~\cite{reybecerra2026mastering}. Even the developers in the field
+demonstration above reported fatigue rising within shifts of 1 to 3.5
+hours, and the two commanders traded shifts to sustain the
+exercise~\cite{adams2023single}. Operations that outlast one
+operator's endurance require rotation, and each incoming operator must
+rebuild an understanding of every agent in the fleet. Handoffs in
+high-consequence supervisory settings demand deliberate coordination
+strategies~\cite{patterson2004handoff}, and operators handing off
+vehicles in multi-vehicle operations benefit from dedicated tools to
+manage the transfer~\cite{chandarana2022streamlining}; yet the human
+factors of handover in uncrewed systems remain sparsely
+studied~\cite{grindley2025handover}. A
+fan-out estimate taken from a short session therefore overstates what
+a fleet can sustain in practice.
+
+Without transparency, the operator must either rely on the agent
+without verifying it or spend attention verifying it. Trust governs
+which of these happens: well-calibrated trust is necessary for
+appropriate reliance~\cite{lee2004trust}, whereas over-trust leads to
+misuse and missed failures, and under-trust leads to disuse and
+unnecessary monitoring~\cite{parasuraman1997humans}. Trust is also
+dynamic; it rises and falls as operators observe agent successes and
+failures over time~\cite{hoff2015trust,devisser2020towards}, so the
+attention an operator devotes to an agent is not a fixed property of
+its autonomy level.
+
+These observations suggest that the relationship between autonomy
+and fan-out is more complex than classic models assume. Increasing
+autonomy may lengthen neglect time, but it may also lengthen
+interaction time, because each intervention now begins with the
+cost of understanding an opaque agent and recalibrating trust in it,
+a cost that is larger for operators who did not build the system and
+that grows as they tire. Trust adds two further costs. First, an
+operator who distrusts a highly autonomous agent under-relies on it,
+checking on it and stepping in when nothing is
+wrong~\cite{parasuraman1997humans,lee2004trust}. This \emph{trust tax}
+consumes operator time that the fan-out equation does not count and
+cuts short the agent's effective neglect time. Second, an operator who
+stops attending to an autonomous agent pays a \emph{recovery cost}
+when the autonomy gets stuck: the failure waits longer to be
+noticed~\cite{cummings2008predicting}, and the interaction needed to
+bring the agent back above its performance threshold depends on how
+far its state has degraded, which grows the longer it was
+neglected~\cite{cummings2008predicting,crandall2011computing}. If
+these costs grow faster than the gains in neglect time, fan-out will
+\emph{not} increase monotonically with autonomy.
+
+Classic fan-out models also treat each robot independently: the time
+an operator spends on one robot does not change what any other robot
+costs. Human factors research suggests otherwise. The operator's
+situation awareness is a single, shared resource, and it depends on
+how the operator is engaged. Operators working at intermediate levels
+of automation keep better situation awareness and recover from
+automation failures faster than operators who only
+monitor~\cite{endsley1995outoftheloop,kaber2004effects}, and handing
+a task back to the operator for a while restores their ability to
+detect failures in the automation that remains~\cite{parasuraman1996effects}.
+In a fleet, this means one rover's autonomy level can affect the
+cost of supervising the others. An operator who is actively directing
+some rovers stays in the loop. When an autonomous rover gets stuck,
+that operator already knows the terrain, the mission's progress, and
+what the fleet is doing, and has less to reconstruct before acting.
+A fleet that keeps some rovers under closer human control may
+therefore make its autonomous rovers cheaper to recover. Low-autonomy
+rovers are not free either, though: teleoperation consumes nearly all
+of the operator's attention while it lasts. Whether a mixed fleet
+supports more rovers than a uniform one depends on whether the
+recovery time saved on autonomous rovers exceeds the interaction time
+spent on closely controlled ones, and that balance changes with the
+task, the terrain, and the operator's state. Choosing the mix is
+therefore an optimization problem, not a design constant. Despite
+repeated calls to determine what level of autonomy robots in a
+supervised team should have and when that level should
+change~\cite{crandall2007identifying,chen2014human}, this trade-off
+has received little direct empirical study in multi-robot settings.
+
+In this paper, we argue that \emph{autonomy is not free attention}:
+autonomy does not remove the attentional cost of supervision but
+shifts it from \emph{controlling} agents to \emph{verifying} them,
+and an operator who is out of the loop pays that cost at every
+recovery. We claim that a fleet in which an optimizer assigns each
+rover its level of autonomy, keeping some rovers under closer human
+control, can be supervised at a higher fan-out than a fleet at any
+single uniform level, even though fewer of its rovers are fully
+autonomous. We attribute this gain to two sources and measure them
+separately. The first is \emph{allocation}: matching each rover's
+level to the difficulty of its task. The second is \emph{engagement}:
+hands-on control keeps the operator's situation awareness high
+enough that recovering the autonomous rovers takes less time. We
+test this claim in a user study in which a single operator supervises
+a fleet of ground rovers under uniform autonomy levels, a fixed mix
+of levels, and a mix recommended by the optimizer.
+\todo{State participant pool (non-developers?) and session length
+here, so the study matches the motivation above.}
+Our contributions are:
+
+\begin{itemize}
+  \item A fan-out model for fleets with \emph{mixed} levels of
+        autonomy. It replaces the per-level fan-out equation with a
+        constraint on operator utilization summed over rovers, and
+        extends neglect, interaction, and wait time (NT/IT/WT) with
+        (a) a \emph{trust tax}, the monitoring and unprompted
+        interventions spent on rovers that do not need help;
+        (b) a \emph{recovery cost} that grows with the time since a
+        rover last received attention; and (c) a fleet-level
+        \emph{operator engagement} state, raised by active control and
+        decaying during passive monitoring, that scales the
+        interaction time of every rover. Terms (a) and (b) are tied to
+        a latent per-rover trust state with explicit dynamics.
+  \item An autonomy allocation optimizer that uses this model to
+        recommend a level for each rover, accounting for the effect
+        each rover's level has on the cost of supervising the rest of
+        the fleet.
+  \item A multi-rover supervision platform supporting five levels of
+        autonomy, from teleoperation to exploration (L0--L4,
+        Table~\ref{tab:levels}), with per-rover logging of neglect,
+        interaction, and wait time and in-task probes of situation
+        awareness.
+  \item A user study comparing uniform autonomy levels, a fixed mix,
+        and the optimizer's recommended mix on fan-out, task
+        performance, situation awareness, operator workload
+        (NASA-TLX~\cite{hart1988development}), and trust. Comparing
+        the fixed and recommended mixes separates the gain from
+        mixing levels from the gain from optimizing them, and
+        comparing the recovery time of autonomous rovers in mixed and
+        uniform fleets tests the engagement mechanism directly.
+        \todo{Summarize key finding once data is in.}
+\end{itemize}
+
+
+\section{Problem Formulation}
+\label{sec:problem}
+
+\subsection{Levels of Autonomy}
+\label{sec:levels}
+Each rover runs at one of five levels of autonomy, L0 to L4
+(Table~\ref{tab:levels}). The levels differ in who sets the rover's
+goals and who is responsible for avoiding obstacles. At L0 and L1 the
+operator drives; at L2 and L3 the operator places waypoints and the
+rover drives to them; at L4 the rover chooses its own goals. Each step
+up hands the operator's next task to the rover: L1 takes over
+stopping for obstacles, L2 takes over driving, L3 takes over avoiding
+obstacles, and L4 takes over choosing where to go.
+
+At L3 the rover avoids an obstacle only when it can find a path around
+it. When it cannot, it stops and signals the operator, who must then
+intervene. L3 also requires every waypoint to lie inside a map the
+rover has already built, either while the operator drove it manually
+or during L2 waypoint runs. Only L4 can take the rover into
+locations it has not mapped.
+
+\begin{table}[t]
+\caption{Levels of autonomy. Each level hands one more task from the
+operator to the rover.}
+\label{tab:levels}
+\centering
+\small
+\begin{tabularx}{\columnwidth}{@{}l>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+Level & Operator & Rover \\
+\midrule
+L0 & Teleoperates; responsible for avoiding obstacles. & Nothing on its own. \\
+L1 & Teleoperates. & Recognizes obstacles and stops. \\
+L2 & Sets waypoints; monitors for obstacles. & Drives to each waypoint; does not avoid obstacles. \\
+L3 & Sets waypoints inside the existing map. & Drives to each waypoint and avoids obstacles; if it finds no path, stops and signals the operator. \\
+L4 & Monitors; takes over when needed. & Explores new locations, plans paths, and avoids obstacles. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Classic Fan-Out}
+\label{sec:classic-fo}
+Each rover alternates between two phases. During a \emph{neglect}
+interval it works without the operator; the interval ends when the
+rover needs help, either because it has finished its command and needs
+a new one or because it has failed. The rover then \emph{waits} until
+the operator turns to it, and an \emph{interaction} follows in which
+the operator gives a new command or recovers the rover. With mean
+neglect time $\mathrm{NT}_\ell$, interaction time $\mathrm{IT}_\ell$,
+and wait time $\mathrm{WT}$ at level $\ell$, the number of rovers one
+operator can keep productive
+is~\cite{olsen2004fanout,cummings2008predicting}
+\begin{equation}
+  \mathrm{FO}_\ell = \frac{\mathrm{NT}_\ell}{\mathrm{IT}_\ell + \mathrm{WT}} + 1 .
+  \label{eq:fo-classic}
+\end{equation}
+Higher levels lengthen $\mathrm{NT}_\ell$, so Eq.~\eqref{eq:fo-classic}
+predicts that fan-out rises with autonomy. The equation counts only
+operator time spent in interactions. Time spent watching a rover that
+does not need help appears nowhere, and $\mathrm{IT}_\ell$ is a
+constant that does not depend on how long the rover went unattended.
+We relax both assumptions through a model of operator trust
+(Sections~\ref{sec:trust}--\ref{sec:fo-aware}). The equation also
+assumes that every rover runs at the same level and that what one
+rover costs the operator does not depend on the others. We relax
+these assumptions through a model of operator engagement
+(Sections~\ref{sec:engagement}--\ref{sec:allocation}).
+
+\subsection{Operator Trust}
+\label{sec:trust}
+Let $\theta_i \in [0,1]$ be the operator's trust in rover $i$ at its
+current level and in its current situation. We track trust separately
+for each level and situation, such as terrain type, because an
+operator may trust a rover at L3 on grass but not on rubble.
+Trust is latent: we estimate it from questionnaires and from the
+operator's behavior, but we do not observe it directly. It changes
+when the operator observes an outcome. Following the linear dynamic
+trust model of Yao and Zhang~\cite{yao2020optimal}, after the $k$-th
+observed outcome of rover $i$,
+\begin{equation}
+  \theta_i(k) = \Big[\, A\,\theta_i(k-1) + B\,P_i(k) - C\,P_i(k-1) \,\Big]_0^1 ,
+  \label{eq:trust}
+\end{equation}
+where $[\cdot]_0^1$ clips trust to $[0,1]$. The coefficient
+$A \in (0,1)$ is memory: values just under one mean trust changes
+slowly. The term $B\,P_i(k)$ raises trust when the rover performs well,
+and $-C\,P_i(k-1)$ makes trust respond to changes in performance as
+well as to its level. We fit $A$, $B$, and $C$ for each participant.
+The performance score $P_i(k)$ comes from logged events:
+\begin{equation}
+  P_i(k) =
+  \begin{cases}
+    p_s  & \text{command completed without help,}\\
+    -p_a & \text{announced failure,}\\
+    -p_q & \text{silent failure the operator discovered,}
+  \end{cases}
+  \label{eq:performance}
+\end{equation}
+with $p_s, p_a, p_q > 0$. We expect $p_q > p_a$: a failure the operator
+was not warned about should cost more trust than one the rover
+announced~\cite{lee2004trust}. This is consistent with the observation
+that trust rises and falls with experience of the
+agent~\cite{hoff2015trust}. Only \emph{observed} outcomes update
+trust. A failure the operator never notices leaves trust unchanged,
+so an operator who rarely checks a rover can keep trusting it while
+it is stuck.
+
+We measure trust in two ways. Participants rate their trust in each
+rover with a short scale after each trial and with an in-task slider
+during it. \todo{Choose and cite the scale, e.g., Jian et al.\ or
+Muir.} We fit $A$, $B$, and $C$ to these ratings rather than inferring
+trust from performance alone, since reported trust need not track
+performance. Behavior gives the second measure: the rate at which an
+operator checks rovers that do not need help, and steps in when they
+did not have to. The trust tax (Section~\ref{sec:trust-tax}) rests on
+the assumption that the rated trust predicts this behavior, and we
+test that assumption directly.
+
+\subsection{Trust Tax}
+\label{sec:trust-tax}
+While rover $i$ works at level $\ell$, the operator checks on it at
+rate $c_\ell(\theta_i)$, each check taking mean time $\delta$, and
+steps in without being asked at rate $\nu_\ell(\theta_i)$, each
+unprompted intervention taking mean time $\mathrm{IT}^{u}_\ell$. Both
+rates fall as trust rises; in the simplest form they are linear in
+distrust, $c_\ell(\theta) = c^{0}_\ell + c^{1}_\ell\,(1-\theta)$ and
+$\nu_\ell(\theta) = \nu^{1}_\ell\,(1-\theta)$, where $c^{0}_\ell$ is the
+check rate of a fully trusting operator. A check sends no command, so it is not
+logged as interaction time. An unprompted intervention ends the
+neglect interval early, so it competes with the rover's own need for
+help. If the rover needs help at rate $1/\mathrm{NT}_\ell$, its
+effective neglect time is
+\begin{equation}
+  \mathrm{NT}^{\mathrm{eff}}_i =
+  \left( \frac{1}{\mathrm{NT}_\ell} + \nu_\ell(\theta_i) \right)^{-1}
+  \le \mathrm{NT}_\ell .
+  \label{eq:nt-eff}
+\end{equation}
+The \emph{trust tax} is the operator time rover $i$ takes per cycle
+while it does not need help:
+\begin{equation}
+  \tau_i = \mathrm{NT}^{\mathrm{eff}}_i
+  \left( c_\ell(\theta_i)\,\delta + \nu_\ell(\theta_i)\,\mathrm{IT}^{u}_\ell \right).
+  \label{eq:trust-tax}
+\end{equation}
+
+\subsection{Recovery Cost}
+\label{sec:recovery}
+A fraction $h_\ell$ of neglect intervals end in failure rather than
+in a completed command. Of these failures, a fraction $\varphi_\ell$
+are \emph{announced}: the rover stops and signals the operator, as an
+L3 rover does when it finds no path. The rest are \emph{silent}, and
+the operator learns of them only at the next check. If checks arrive
+at rate $c_\ell(\theta_i)$, a silent failure waits on average
+$1/c_\ell(\theta_i)$ before it is noticed, so the expected wait per
+cycle is
+\begin{equation}
+  \mathrm{WT}_i = W_q + h_\ell\,\frac{1-\varphi_\ell}{c_\ell(\theta_i)},
+  \label{eq:wt}
+\end{equation}
+where $W_q$ is the delay while the operator serves other rovers.
+
+Let $a_i$ be the time since rover $i$ last received the operator's
+attention, whether a command, a check, or an interaction, measured
+when recovery begins. The longer a stuck rover goes unattended, the
+more its state can degrade and the more the operator must reconstruct
+before acting. We model the interaction time needed to bring it back
+above its performance threshold as
+\begin{equation}
+  \mathrm{IT}^{\mathrm{rec}}_\ell(a_i) = \mathrm{IT}^{\mathrm{rec}}_{\ell,0} + \beta_\ell\, a_i,
+  \qquad \beta_\ell \ge 0 ,
+  \label{eq:it-rec}
+\end{equation}
+where the \emph{recovery cost} is the term $\beta_\ell a_i$. The
+expected interaction time per cycle mixes commands and recoveries:
+\begin{equation}
+  \mathrm{IT}^{\mathrm{eff}}_i = (1-h_\ell)\,\mathrm{IT}^{\mathrm{cmd}}_\ell
+  + h_\ell\,\mathbb{E}\!\left[\mathrm{IT}^{\mathrm{rec}}_\ell(a_i)\right].
+  \label{eq:it-eff}
+\end{equation}
+
+\subsection{Trust- and Recovery-Aware Fan-Out}
+\label{sec:fo-aware}
+Counting the trust tax as operator time that each rover consumes, the
+fan-out of a fleet at level $\ell$ becomes
+\begin{equation}
+  \mathrm{FO}_\ell(\theta) =
+  \frac{\mathrm{NT}^{\mathrm{eff}}}{\mathrm{IT}^{\mathrm{eff}} + \mathrm{WT} + \tau} + 1 .
+  \label{eq:fo-aware}
+\end{equation}
+The trust tax lowers fan-out twice, by shortening
+$\mathrm{NT}^{\mathrm{eff}}$ and by adding $\tau$ to the denominator.
+The recovery cost lowers it by raising $\mathrm{IT}^{\mathrm{eff}}$ and
+$\mathrm{WT}$.
+
+Eq.~\eqref{eq:fo-aware} reduces to Eq.~\eqref{eq:fo-classic} when the
+operator never checks or intervenes unprompted ($c_\ell = \nu_\ell =
+0$), recovery does not depend on neglect ($\beta_\ell = 0$), and every
+failure is announced ($\varphi_\ell = 1$). We call this the
+\emph{naive model}. It treats autonomy as free attention, and it is
+the baseline against which we compare the full model.
+
+The check rate $c_\ell(\theta)$ enters both costs with opposite sign.
+Checking more raises the trust tax; checking less delays the discovery
+of silent failures and lengthens the time each stuck rover goes
+unattended, which raises the recovery cost. Fan-out is therefore
+highest at an intermediate check rate. The operator does not choose
+this rate directly: trust sets it. An operator who under-trusts a
+rover checks it more than needed and pays the trust tax; one who
+over-trusts it checks it too little and pays the recovery cost. The
+model gives calibrated trust a measurable meaning, namely the check
+rate that maximizes Eq.~\eqref{eq:fo-aware}. It also shows how fan-out
+can fall as autonomy rises. A higher level lengthens
+$\mathrm{NT}_\ell$, but if it hides more of the rover's reasoning, it
+may also raise the check rate at a given trust, make more failures
+silent, or raise $\beta_\ell$, and any of these can outweigh the gain
+in neglect time.
+
+\subsection{Operator Engagement}
+\label{sec:engagement}
+The model so far gives each rover its own trust state and its own
+costs. The operator's understanding of the fleet as a whole, however,
+is a single shared state. Let $E(t) \in [0,1]$ be the operator's
+\emph{engagement}: how well the operator currently knows the terrain,
+the progress of the mission, and what the fleet is doing. Like trust,
+engagement is latent; we estimate it from situation awareness probes
+during the task. Engagement rises while the operator actively controls
+a rover and decays while the operator only
+monitors~\cite{endsley1995outoftheloop,kaber2004effects}.
+
+Let $g_\ell \in [0,1]$ be how much active control an interaction at
+level $\ell$ involves, with $g_\ell$ decreasing in $\ell$. Driving a
+rover at L0 or L1 engages the operator fully. Placing waypoints at L2
+or L3 engages the operator partly. Restarting or approving an L4 rover
+engages the operator least. Let $u(t) = g_{\ell(t)}$ while the
+operator interacts with a rover at level $\ell(t)$, and $u(t) = 0$
+while the operator checks rovers or is idle. Engagement then evolves as
+\begin{equation}
+  \frac{dE}{dt} = \kappa\, u\,(1 - E) - \lambda\,(1 - u)\,E ,
+  \label{eq:engagement}
+\end{equation}
+with gain rate $\kappa$ and decay rate $\lambda$. Checks do not raise
+engagement: looking at a rover's camera feed is monitoring, not
+control. When the operator switches between rovers faster than $E$
+changes, Eq.~\eqref{eq:engagement} can be averaged over the switching,
+and engagement settles at
+\begin{equation}
+  \bar{E} = \frac{\kappa\,\bar{u}}{\kappa\,\bar{u} + \lambda\,(1-\bar{u})},
+  \qquad
+  \bar{u} = \sum_{i=1}^{N} g_{\ell_i}\,\frac{\mathrm{IT}^{\mathrm{eff}}_i}{T_i},
+  \label{eq:engagement-ss}
+\end{equation}
+where $T_i = \mathrm{NT}^{\mathrm{eff}}_i + \mathrm{WT}_i +
+\mathrm{IT}^{\mathrm{eff}}_i$ is the length of rover $i$'s cycle, so
+$\mathrm{IT}^{\mathrm{eff}}_i / T_i$ is the share of the operator's
+time spent interacting with it.
+
+An engaged operator has less to reconstruct before recovering a stuck
+rover. We extend Eq.~\eqref{eq:it-rec} to
+\begin{equation}
+  \mathrm{IT}^{\mathrm{rec}}_\ell(a_i, E) =
+  \left( \mathrm{IT}^{\mathrm{rec}}_{\ell,0} + \beta_\ell\, a_i \right)
+  \left( 1 - \gamma_\ell\, E \right),
+  \qquad 0 \le \gamma_\ell < 1 ,
+  \label{eq:it-rec-e}
+\end{equation}
+where $\gamma_\ell$ is the share of a recovery at level $\ell$ that an
+engaged operator can skip. We expect $\gamma_\ell$ to grow with
+$\ell$, because an L4 rover's choices of where to go are the ones the
+operator is least likely to have seen. With $\gamma_\ell = 0$,
+Eq.~\eqref{eq:it-rec-e} reduces to Eq.~\eqref{eq:it-rec} and the
+rovers are independent again. With $\gamma_\ell > 0$ they are
+coupled: a rover held at a low level consumes more of the operator's
+time, but it raises $\bar{u}$ and therefore $\bar{E}$, and that
+shortens the recovery of every other rover in the fleet.
+
+\subsection{Fan-Out of a Mixed Fleet}
+\label{sec:fo-mixed}
+Let $\boldsymbol{\ell} = (\ell_1, \dots, \ell_N)$ assign a level to
+each rover in a fleet of $N$, and let $\mathcal{L}_i$ be the set of
+levels feasible for rover $i$; for example, L3 is feasible only for a
+rover whose waypoints lie inside the mapped region
+(Section~\ref{sec:levels}). Rovers may face different tasks, so we
+write the parameters of rover $i$ at its assigned level with subscript
+$i$ (e.g., $\mathrm{NT}_i$, $h_i$, $\gamma_i$); they may depend on the
+rover's task as well as its level.
+
+Eq.~\eqref{eq:fo-aware} has no meaning in a mixed fleet, because there
+is no single level to evaluate it at. Instead we count operator time.
+In each cycle, rover $i$ takes $\mathrm{IT}^{\mathrm{eff}}_i$ of
+interaction and $\tau_i$ of trust tax, so its share of the operator's
+time is $\rho_i = (\mathrm{IT}^{\mathrm{eff}}_i + \tau_i)/T_i$, and the
+operator's utilization is
+\begin{equation}
+  U(\boldsymbol{\ell}) = \sum_{i=1}^{N} \rho_i
+  = \sum_{i=1}^{N} \frac{\mathrm{IT}^{\mathrm{eff}}_i + \tau_i}
+                         {\mathrm{NT}^{\mathrm{eff}}_i + \mathrm{WT}_i + \mathrm{IT}^{\mathrm{eff}}_i} .
+  \label{eq:utilization}
+\end{equation}
+For a uniform fleet with no trust tax and no wait, setting $U = 1$
+gives $N = \mathrm{NT}/\mathrm{IT} + 1$, which is
+Eq.~\eqref{eq:fo-classic} with $\mathrm{WT} = 0$. An operator cannot
+sustain full utilization over a shift; performance degrades once
+utilization exceeds roughly 70\%~\cite{cummings2007developing}. We
+therefore define the fan-out of a mixed fleet as the largest fleet
+that some feasible assignment keeps within a sustainable utilization
+$U_{\max} < 1$:
+\begin{equation}
+  \mathrm{FO}^{*} = \max \Big\{ N : \min_{\boldsymbol{\ell} \in
+  \mathcal{L}_1 \times \dots \times \mathcal{L}_N}
+  U(\boldsymbol{\ell}) \le U_{\max} \Big\} .
+  \label{eq:fo-mixed}
+\end{equation}
+
+$U(\boldsymbol{\ell})$ is not a sum of independent terms. Each
+$\rho_i$ depends on $\bar{E}$ through rover $i$'s recovery time
+(Eq.~\eqref{eq:it-rec-e}); $\bar{E}$ depends on $\bar{u}$, which
+depends on every rover's interaction time
+(Eq.~\eqref{eq:engagement-ss}); and the queueing delay $W_q$ inside
+each $\mathrm{WT}_i$ grows with $U$ itself. We evaluate $U$ for a
+given assignment by fixed-point iteration over
+Eqs.~\eqref{eq:wt}, \eqref{eq:it-eff}, \eqref{eq:engagement-ss},
+and~\eqref{eq:it-rec-e}, starting from $\bar{E} = 0$.
+\todo{Check convergence of the iteration for the fitted parameters.}
+
+\emph{When mixing helps.} Lowering rover $k$'s level changes
+utilization by approximately
+\begin{equation}
+  \Delta U \approx \Delta \rho_k
+  + \Delta \bar{E} \sum_{j \ne k} \frac{\partial \rho_j}{\partial \bar{E}} .
+  \label{eq:mix-condition}
+\end{equation}
+The first term is usually positive, since a rover at a lower level
+needs the operator more often. The second is negative, since
+$\Delta \bar{E} > 0$ and engagement shortens recovery
+($\partial \rho_j / \partial \bar{E} \le 0$). Holding rover $k$ at a
+lower level pays off when the engagement it produces, summed over the
+other $N-1$ rovers, saves more operator time than rover $k$ costs.
+Each term in the sum scales with $h_j \gamma_j$, the rate at which
+rover $j$ fails times the share of its recovery that engagement
+removes. The model therefore predicts that mixing levels helps most in
+large fleets of highly autonomous rovers that fail often in ways the
+operator cannot see coming, and that it does not help in small fleets
+or with reliable autonomy, where a uniform high level is best.
+
+\emph{Allocation and engagement gains.} Let $\boldsymbol{\ell}^{U}$ be
+the best uniform assignment, $\boldsymbol{\ell}^{0}$ the best
+assignment under the model with $\gamma_i = 0$ for all rovers, and
+$\boldsymbol{\ell}^{*}$ the best assignment under the full model. With
+all three evaluated under the full model, the saving in utilization
+from mixing splits as
+\begin{equation}
+  U(\boldsymbol{\ell}^{U}) - U(\boldsymbol{\ell}^{*}) =
+  \underbrace{U(\boldsymbol{\ell}^{U}) - U(\boldsymbol{\ell}^{0})}_{\text{allocation}}
+  + \underbrace{U(\boldsymbol{\ell}^{0}) - U(\boldsymbol{\ell}^{*})}_{\text{engagement}} .
+  \label{eq:decomposition}
+\end{equation}
+The allocation gain comes from matching each rover's level to its
+task while treating rovers as independent. The engagement gain comes
+from choosing levels with the coupling through $\bar{E}$ in view, and
+it is non-negative by construction because $\boldsymbol{\ell}^{*}$ is
+optimal under the full model. If $\gamma_i = 0$ for every rover, the
+engagement gain is zero, so an empirical estimate of $\gamma_\ell$ is
+a direct test of the engagement claim.
+
+\subsection{Autonomy Allocation}
+\label{sec:allocation}
+During the task, the optimizer recommends a level for each rover.
+After each observed outcome, it updates each $\theta_i$ with
+Eq.~\eqref{eq:trust} and the engagement estimate $\hat{E}$ with
+Eq.~\eqref{eq:engagement} from the logged interactions, and solves
+\begin{equation}
+  \boldsymbol{\ell}^{+} = \arg\min_{\boldsymbol{\ell} \in
+  \mathcal{L}_1 \times \dots \times \mathcal{L}_N}
+  \; U(\boldsymbol{\ell};\, \boldsymbol{\theta}, \hat{E})
+  + \frac{1}{H} \sum_{i=1}^{N} s\big(\ell_i^{\mathrm{cur}} \to \ell_i\big),
+  \label{eq:allocation}
+\end{equation}
+where $s(\ell \to \ell')$ is the operator time needed to move a rover
+from its current level $\ell$ to $\ell'$ (for example, taking over a
+rover the operator has not been watching), amortized over a planning
+horizon $H$. To avoid oscillating between assignments, the optimizer
+recommends a change only when it lowers $U$ by more than a margin
+$\mu$. The operator may accept or decline each recommendation. We log
+every recommendation and response; a declined recommendation is a
+further behavioral signal of trust. With five levels the search space
+has at most $5^N$ assignments, which we search exhaustively for the
+fleet sizes in our study \todo{state fleet sizes}. For larger fleets,
+because the assignment enters $U$ only through per-rover terms and the
+scalar $\bar{u}$, coordinate descent over rovers is a natural
+approximation. \todo{State how the model parameters are estimated,
+e.g., from pilot sessions.}
+
+
+
+\section*{Acknowledgment}
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}
