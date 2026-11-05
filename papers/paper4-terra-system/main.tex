@@ -216,7 +216,7 @@ Level & Intent & Local planner & GPS & Operator gives \\
 L0 Teleop & Operator twist, 0.5~s lease & Bypassed & -- & Continuous drive \\
 L1 Assisted & Operator twist & Chooses closest admissible command & -- & Continuous drive \\
 L2 Direct & Pursuit straight to the goal & Bypassed & \checkmark & A goal \\
-L3 Waypoint & Pursuit along an A* route & Checks every command & \checkmark & A goal \\
+L3 Planned & Pursuit along an A* route & Checks every command & \checkmark & A goal \\
 L4 Explore & Frontier with best gain per distance (toward the destination if one is set) & Checks, 1~s horizon & \checkmark & A time budget \\
 L4 Search & Frontiers inside an area; detector confirmation & Checks & -- & Area, class, budget \\
 L5 Task & Waypoints proposed by the on-phone model, each A*-checked & Checks & \checkmark & A typed task; answers \\
